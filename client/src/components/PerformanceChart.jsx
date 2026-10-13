@@ -10,27 +10,42 @@ import {
   Legend
 } from 'recharts';
 
+const safeNum = (val) => {
+  if (val === null || val === undefined || val === '' || isNaN(val) || typeof val === 'boolean') return null;
+  const num = Number(val);
+  return isFinite(num) ? num : null;
+};
+
 const PerformanceChart = ({ fund }) => {
   if (!fund) return null;
 
+  const getReg = (yr) => safeNum(fund[`return${yr}YearRegular`] ?? fund[`regReturn${yr}Yr`] ?? (fund.planUsed !== 'Direct' ? fund[`return${yr}Yr`] : null));
+  const getDir = (yr) => safeNum(fund[`return${yr}YearDirect`] ?? fund[`dirReturn${yr}Yr`] ?? (fund.planUsed === 'Direct' ? fund[`return${yr}Yr`] : null));
+  const getBmk = (yr) => safeNum(fund[`return${yr}YearBenchmark`] ?? fund[`benchmarkReturn${yr}Yr`] ?? null);
+
   // Prepare comparison data points for available return periods
   const periods = [
-    { period: '1Y Return', regular: fund.return1YearRegular, direct: fund.return1YearDirect, benchmark: fund.return1YearBenchmark },
-    { period: '3Y Return', regular: fund.return3YearRegular, direct: fund.return3YearDirect, benchmark: fund.return3YearBenchmark },
-    { period: '5Y Return', regular: fund.return5YearRegular, direct: fund.return5YearDirect, benchmark: fund.return5YearBenchmark },
-    { period: '10Y Return', regular: fund.return10YearRegular, direct: fund.return10YearDirect, benchmark: fund.return10YearBenchmark },
-    { period: 'Since Launch', regular: fund.returnSinceLaunchRegular, direct: fund.returnSinceLaunchDirect, benchmark: fund.returnSinceLaunchBenchmarkRegular }
+    { period: '1Y Return', regular: getReg(1), direct: getDir(1), benchmark: getBmk(1) },
+    { period: '3Y Return', regular: getReg(3), direct: getDir(3), benchmark: getBmk(3) },
+    { period: '5Y Return', regular: getReg(5), direct: getDir(5), benchmark: getBmk(5) },
+    { period: '10Y Return', regular: getReg(10), direct: getDir(10), benchmark: getBmk(10) },
+    { 
+      period: 'Since Launch', 
+      regular: safeNum(fund.returnSinceLaunchRegular ?? fund.regReturnSinceLaunch ?? fund.returnSinceLaunch), 
+      direct: safeNum(fund.returnSinceLaunchDirect ?? fund.dirReturnSinceLaunch ?? (fund.planUsed === 'Direct' ? fund.returnSinceLaunch : null)), 
+      benchmark: safeNum(fund.returnSinceLaunchBenchmarkRegular ?? fund.benchmarkReturnSinceLaunch) 
+    }
   ];
 
-  // Filter out periods where all 3 are null
+  // Filter out periods where all 3 are null and ensure toFixed is only called on valid numbers
   const chartData = periods
-    .filter(p => p.regular !== null || p.direct !== null || p.benchmark !== null)
     .map(p => ({
       period: p.period,
       'Regular Plan (%)': p.regular !== null ? Number(p.regular.toFixed(2)) : null,
       'Direct Plan (%)': p.direct !== null ? Number(p.direct.toFixed(2)) : null,
       'Benchmark (%)': p.benchmark !== null ? Number(p.benchmark.toFixed(2)) : null
-    }));
+    }))
+    .filter(p => p['Regular Plan (%)'] !== null || p['Direct Plan (%)'] !== null || p['Benchmark (%)'] !== null);
 
   if (chartData.length === 0) {
     return (

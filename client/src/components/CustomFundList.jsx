@@ -67,82 +67,162 @@ export const CustomFundList = ({
     return nseIndices.filter(idx => selectedNseIndexIds.has(idx.id));
   }, [nseIndices, selectedNseIndexIds]);
 
-  // Checked state for AMFI funds (auto pre-checked on load and when new funds added)
-  const [checkedForExportIds, setCheckedForExportIds] = useState(() => new Set(funds.map(f => f.id)));
-  const prevTrackedFundsRef = useRef(new Set());
+  // Storage keys for persistent deselection
+  const deselectedStorageKey = `fundpulse_deselected_${type}`;
+  const deselectedNseStorageKey = `fundpulse_deselected_nse_${type}`;
 
-  // Checked state for NSE indices in Custom List (auto pre-checked)
-  const [checkedNseExportIds, setCheckedNseExportIds] = useState(() => new Set(selectedNseIndicesList.map(i => i.id)));
-  const prevTrackedNseRef = useRef(new Set());
+  // Persistent Set of explicitly deselected fund IDs for export
+  const [deselectedFundIds, setDeselectedFundIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`fundpulse_deselected_${type}`);
+      if (saved) {
+        const arr = JSON.parse(saved);
+        if (Array.isArray(arr)) return new Set(arr);
+      }
+    } catch (e) {}
+    return new Set();
+  });
 
+  // Persistent Set of explicitly deselected NSE index IDs for export
+  const [deselectedNseIds, setDeselectedNseIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`fundpulse_deselected_nse_${type}`);
+      if (saved) {
+        const arr = JSON.parse(saved);
+        if (Array.isArray(arr)) return new Set(arr);
+      }
+    } catch (e) {}
+    return new Set();
+  });
+
+  // Keep localStorage synchronized whenever deselectedFundIds changes
   useEffect(() => {
-    setCheckedForExportIds(prev => {
-      const next = new Set(prev);
-      funds.forEach(f => {
-        if (!prevTrackedFundsRef.current.has(f.id)) {
-          next.add(f.id);
-        }
-      });
-      prevTrackedFundsRef.current = new Set(funds.map(f => f.id));
-      return next;
-    });
-  }, [funds]);
+    try {
+      localStorage.setItem(deselectedStorageKey, JSON.stringify(Array.from(deselectedFundIds)));
+    } catch (e) {}
+  }, [deselectedFundIds, deselectedStorageKey]);
 
+  // Keep localStorage synchronized whenever deselectedNseIds changes
   useEffect(() => {
-    setCheckedNseExportIds(prev => {
-      const next = new Set(prev);
-      selectedNseIndicesList.forEach(i => {
-        if (!prevTrackedNseRef.current.has(i.id)) {
-          next.add(i.id);
-        }
-      });
-      prevTrackedNseRef.current = new Set(selectedNseIndicesList.map(i => i.id));
-      return next;
+    try {
+      localStorage.setItem(deselectedNseStorageKey, JSON.stringify(Array.from(deselectedNseIds)));
+    } catch (e) {}
+  }, [deselectedNseIds, deselectedNseStorageKey]);
+
+  // Checked state for AMFI funds: any fund in list that is NOT explicitly deselected
+  const checkedForExportIds = useMemo(() => {
+    const set = new Set();
+    funds.forEach(f => {
+      if (!deselectedFundIds.has(f.id)) {
+        set.add(f.id);
+      }
     });
-  }, [selectedNseIndicesList]);
+    return set;
+  }, [funds, deselectedFundIds]);
+
+  // Checked state for NSE indices: any index in list that is NOT explicitly deselected
+  const checkedNseExportIds = useMemo(() => {
+    const set = new Set();
+    selectedNseIndicesList.forEach(i => {
+      if (!deselectedNseIds.has(i.id)) {
+        set.add(i.id);
+      }
+    });
+    return set;
+  }, [selectedNseIndicesList, deselectedNseIds]);
 
   const handleToggleExportFund = (id) => {
-    setCheckedForExportIds(prev => {
+    setDeselectedFundIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id); // Was deselected -> re-select
+      } else {
+        next.add(id); // Was selected -> deselect
+      }
       return next;
     });
   };
 
   const handleToggleNseExport = (id) => {
-    setCheckedNseExportIds(prev => {
+    setDeselectedNseIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id); // Was deselected -> re-select
+      } else {
+        next.add(id); // Was selected -> deselect
+      }
       return next;
     });
   };
 
   const handleToggleCategoryExport = (catFunds) => {
-    const allCatChecked = catFunds.every(f => checkedForExportIds.has(f.id));
-    setCheckedForExportIds(prev => {
+    const allCatChecked = catFunds.every(f => !deselectedFundIds.has(f.id));
+    setDeselectedFundIds(prev => {
       const next = new Set(prev);
-      if (allCatChecked) catFunds.forEach(f => next.delete(f.id));
-      else catFunds.forEach(f => next.add(f.id));
+      if (allCatChecked) {
+        catFunds.forEach(f => next.add(f.id));
+      } else {
+        catFunds.forEach(f => next.delete(f.id));
+      }
       return next;
     });
   };
 
   const handleToggleAllAmfiExport = () => {
-    const allChecked = funds.every(f => checkedForExportIds.has(f.id));
-    setCheckedForExportIds(prev => {
-      if (allChecked) return new Set();
-      return new Set(funds.map(f => f.id));
+    const allChecked = funds.length > 0 && funds.every(f => !deselectedFundIds.has(f.id));
+    setDeselectedFundIds(prev => {
+      const next = new Set(prev);
+      if (allChecked) {
+        funds.forEach(f => next.add(f.id));
+      } else {
+        funds.forEach(f => next.delete(f.id));
+      }
+      return next;
     });
   };
 
   const handleToggleAllNseExport = () => {
-    const allChecked = selectedNseIndicesList.every(i => checkedNseExportIds.has(i.id));
-    setCheckedNseExportIds(prev => {
-      if (allChecked) return new Set();
-      return new Set(selectedNseIndicesList.map(i => i.id));
+    const allChecked = selectedNseIndicesList.length > 0 && selectedNseIndicesList.every(i => !deselectedNseIds.has(i.id));
+    setDeselectedNseIds(prev => {
+      const next = new Set(prev);
+      if (allChecked) {
+        selectedNseIndicesList.forEach(i => next.add(i.id));
+      } else {
+        selectedNseIndicesList.forEach(i => next.delete(i.id));
+      }
+      return next;
     });
+  };
+
+  const handleRemoveFundAction = (id) => {
+    setDeselectedFundIds(prev => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    if (onRemoveFund) onRemoveFund(id);
+  };
+
+  const handleRemoveNseAction = (id) => {
+    setDeselectedNseIds(prev => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    if (onRemoveNseIndex) onRemoveNseIndex(id);
+  };
+
+  const handleClearAllAction = () => {
+    setDeselectedFundIds(new Set());
+    setDeselectedNseIds(new Set());
+    try {
+      localStorage.removeItem(deselectedStorageKey);
+      localStorage.removeItem(deselectedNseStorageKey);
+    } catch (e) {}
+    if (onClearAll) onClearAll();
+    setShowClearConfirm(false);
   };
 
   const formatPct = (val) => {
@@ -438,7 +518,11 @@ export const CustomFundList = ({
                           return (
                             <tr
                               key={fund.id}
-                              onClick={() => onSelectFund && onSelectFund(fund)}
+                              onClick={() => {
+                                const sel = window.getSelection();
+                                if (sel && sel.toString().trim().length > 0) return;
+                                if (onSelectFund) onSelectFund(fund);
+                              }}
                               className={`hover:bg-slate-800/40 cursor-pointer transition-colors ${
                                 !isChecked ? 'opacity-60 bg-slate-950/40' : ''
                               }`}
@@ -451,9 +535,17 @@ export const CustomFundList = ({
                                   className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-brand-600 focus:ring-brand-500 cursor-pointer accent-brand-500"
                                 />
                               </td>
-                              <td className="p-3 font-sans">
-                                <div className="font-bold text-white text-xs">{fund.displayName}</div>
-                                <div className="text-[10px] text-slate-400 mt-0.5">{fund.amcName}</div>
+                              <td 
+                                className="p-3 font-sans select-text cursor-text"
+                                onClick={(e) => {
+                                  const sel = window.getSelection();
+                                  if (sel && sel.toString().trim().length > 0) {
+                                    e.stopPropagation();
+                                  }
+                                }}
+                              >
+                                <div className="font-bold text-white text-xs select-text">{fund.displayName}</div>
+                                <div className="text-[10px] text-slate-400 mt-0.5 select-text">{fund.amcName}</div>
                               </td>
                               {isBoth ? (
                                 <>
@@ -505,7 +597,7 @@ export const CustomFundList = ({
                               <td className="p-3 text-slate-200">{fund.dailyAUMFormatted || 'N/A'}</td>
                               <td className="p-3 text-right pr-4" onClick={(e) => e.stopPropagation()}>
                                 <button
-                                  onClick={() => onRemoveFund(fund.id)}
+                                  onClick={() => handleRemoveFundAction(fund.id)}
                                   className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500 text-rose-300 hover:text-white transition-all"
                                   title="Remove scheme from Custom List"
                                 >
@@ -626,7 +718,7 @@ export const CustomFundList = ({
                         </td>
                         <td className="p-3 text-right pr-4">
                           <button
-                            onClick={() => onRemoveNseIndex && onRemoveNseIndex(idx.id)}
+                            onClick={() => handleRemoveNseAction(idx.id)}
                             className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500 text-rose-300 hover:text-white transition-all"
                             title="Remove index from Custom List"
                           >
@@ -670,10 +762,7 @@ export const CustomFundList = ({
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  onClearAll();
-                  setShowClearConfirm(false);
-                }}
+                onClick={handleClearAllAction}
                 className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shadow-lg transition-all"
               >
                 Yes, Clear All

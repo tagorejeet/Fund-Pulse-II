@@ -21,7 +21,64 @@ const { fuzzyFilterSchemes } = require('../utils/fuzzySearch');
 const CACHE_DIR = path.join(__dirname, '../cache');
 const NAV_CACHE_FILE = path.join(CACHE_DIR, 'nav_history_cache.json');
 const AUM_CACHE_FILE = path.join(CACHE_DIR, 'amfi_aum_cache.json');
-const AMFI_CACHE_TTL = parseInt(process.env.AMFI_CACHE_TTL || '86400', 10); // 24 hours
+const HIST_AUM_CACHE_FILE = path.join(CACHE_DIR, 'amfi_hist_aum_cache.json');
+const NAVALL_CACHE_FILE = path.join(CACHE_DIR, 'navall_cache.txt');
+const AMFI_CACHE_TTL = parseInt(process.env.AMFI_CACHE_TTL || '3600', 10); // 1 hour default (ensures freshly published NAVs are quickly reflected)
+
+const CATEGORY_TO_AMFI_PAIRS = {
+  'Large Cap': [{ category: 1, subCategory: 1 }],
+  'Large & Mid Cap': [{ category: 1, subCategory: 2 }],
+  'Flexi Cap': [{ category: 1, subCategory: 3 }],
+  'Multi Cap': [{ category: 1, subCategory: 4 }],
+  'Mid Cap': [{ category: 1, subCategory: 5 }],
+  'Small Cap': [{ category: 1, subCategory: 6 }],
+  'Value': [{ category: 1, subCategory: 7 }],
+  'Contra': [{ category: 1, subCategory: 9 }],
+  'ELSS': [{ category: 1, subCategory: 8 }],
+  'Dividend Yield': [{ category: 1, subCategory: 10 }],
+  'Focused': [{ category: 1, subCategory: 11 }],
+  'Sectoral / Thematic': [
+    { category: 1, subCategory: 12 },
+    { category: 1, subCategory: 44 },
+    { category: 1, subCategory: 45 }
+  ],
+  'Index Funds': [
+    { category: 5, subCategory: 38 },
+    { category: 5, subCategory: 39 }
+  ],
+  'Hybrid': [
+    { category: 3, subCategory: 30 },
+    { category: 3, subCategory: 31 },
+    { category: 3, subCategory: 32 },
+    { category: 3, subCategory: 33 },
+    { category: 3, subCategory: 34 },
+    { category: 3, subCategory: 35 },
+    { category: 5, subCategory: 39 }
+  ],
+  'Debt / Liquid': [
+    { category: 2, subCategory: 13 },
+    { category: 2, subCategory: 14 },
+    { category: 2, subCategory: 15 },
+    { category: 2, subCategory: 16 },
+    { category: 2, subCategory: 17 },
+    { category: 2, subCategory: 18 },
+    { category: 2, subCategory: 19 },
+    { category: 2, subCategory: 20 },
+    { category: 2, subCategory: 21 },
+    { category: 2, subCategory: 22 },
+    { category: 2, subCategory: 23 },
+    { category: 2, subCategory: 24 },
+    { category: 2, subCategory: 25 },
+    { category: 2, subCategory: 26 },
+    { category: 2, subCategory: 28 },
+    { category: 2, subCategory: 29 }
+  ],
+  'Other': [
+    { category: 4, subCategory: 36 },
+    { category: 4, subCategory: 37 },
+    { category: 5, subCategory: 39 }
+  ]
+};
 
 // Helper for bounded-concurrency async mapping
 async function pMap(items, mapper, concurrency = 12) {
@@ -88,19 +145,29 @@ function cleanSchemeName(name) {
   return (name || '')
     .toLowerCase()
     .replace(/\(.*?\)/g, ' ')
-    .replace(/\s*-\s*institutional\s*/g, ' ')
-    .replace(/\s*-\s*retail\s*/g, ' ')
-    .replace(/\s*-\s*super\s*institutional\s*/g, ' ')
-    .replace(/\s*-\s*direct\s*plan\s*/g, ' ')
-    .replace(/\s*-\s*regular\s*plan\s*/g, ' ')
-    .replace(/\s*direct\s*plan\s*/g, ' ')
-    .replace(/\s*regular\s*plan\s*/g, ' ')
-    .replace(/\s*-\s*direct\s*/g, ' ')
-    .replace(/\s*-\s*regular\s*/g, ' ')
-    .replace(/\s*-\s*growth\s*option\s*/g, ' ')
-    .replace(/\s*-\s*growth\s*plan\s*/g, ' ')
-    .replace(/\s*-\s*growth\s*/g, ' ')
-    .replace(/\s*growth\s*/g, ' ')
+    // Normalize compound category words and brand descriptors
+    .replace(/\blarge\s*(&|and)\s*mid\s*cap\b/ig, 'largemidcap')
+    .replace(/\blarge\s*(&|and)\s*midcap\b/ig, 'largemidcap')
+    .replace(/\bmid\s*cap\b/ig, 'midcap')
+    .replace(/\bsmall\s*cap\b/ig, 'smallcap')
+    .replace(/\blarge\s*cap\b/ig, 'largecap')
+    .replace(/\bmulti\s*cap\b/ig, 'multicap')
+    .replace(/\bflexi\s*cap\b/ig, 'flexicap')
+    .replace(/\btax\s*saver\b/ig, 'taxsaver')
+    .replace(/\bblue\s*chip\b/ig, 'bluechip')
+    .replace(/\bbalanced\s*advantage\b/ig, 'balancedadvantage')
+    .replace(/\bmulti\s*asset\b/ig, 'multiasset')
+    .replace(/\bfund\s*of\s*funds?\b/ig, 'fof')
+    .replace(/\s*-\s*income\s*distribution\s*cum\s*capital\s*withdrawal\b/ig, ' ')
+    .replace(/\bincome\s*distribution\s*cum\s*capital\s*withdrawal\b/ig, ' ')
+    .replace(/\b(annual|monthly|quarterly|weekly|daily)\s+(idcw|dividend)\b/ig, ' ')
+    .replace(/\b(idcw|dividend|bonus)\s*(payout|reinvestment|reinv)?\b/ig, ' ')
+    .replace(/\b(payout|reinvestment|reinv)\b/ig, ' ')
+    .replace(/\s*-\s*(direct|regular|institutional|retail|super\s*institutional)\s*(plan)?\b/ig, ' ')
+    .replace(/\b(direct|regular)\s*plan\b/ig, ' ')
+    .replace(/\b(growth\s*option|growth\s*plan|growth)\b/ig, ' ')
+    .replace(/\bunclaimed\s*amounts\s*plan.*$/ig, ' ')
+    .replace(/\b(option|plan)\b/ig, ' ')
     .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -135,7 +202,7 @@ function determineSchemeOption(name) {
   return 'other';
 }
 
-// User-specified formula: Annualized Return = 4 * ((VT / V0)^(1 / (4 * T)) - 1)
+// User-specified formula: Annualized Return = 4 * ((VT / V0)^(1 / (4 * T)) - 1) * 100
 function calculateFormulaReturn(V0, VT, T) {
   if (!V0 || !VT || V0 <= 0 || VT <= 0 || !T || T <= 0) return null;
   const ratio = VT / V0;
@@ -146,8 +213,8 @@ function calculateFormulaReturn(V0, VT, T) {
   return Number(result.toFixed(2));
 }
 
-// Day Calculation formula:
-// For D < 365 (< 1 Year): Simple / Absolute Return = ((VT - V0) / V0) * 100 (SEBI / AMFI Industry Standard)
+// User-specified Day Calculation formula:
+// For D < 365 (< 1 Year): Simple / Absolute Return = ((VT - V0) / V0) * 100
 // For D >= 365 (>= 1 Year): Quarterly Compounded Annualized Return = 4 * ((VT / V0)^(365 / (4 * D)) - 1) * 100
 function calculateDayFormulaReturn(V0, VT, D) {
   if (!V0 || !VT || V0 <= 0 || VT <= 0 || !D || D <= 0) return null;
@@ -212,7 +279,11 @@ class AmfiService {
     this.schemeMap = new Map(); // id -> scheme object
     this.navHistoryCache = new Map(); // schemeCode -> { navList: [{date, nav}], timestamp }
     this.computedCache = new Map(); // cacheKey -> { data, timestamp }
+    this.historicalAumCache = new Map(); // key `${dateStr}_${cat}_${subCat}` -> array of entries
+    this.inFlightHistAumPromises = new Map();
+    this.dateToEffectiveDateMap = new Map();
     this._saveCacheTimer = null;
+    this._saveHistAumCacheTimer = null;
     // Initialize to yesterday's date dynamically
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
@@ -220,9 +291,56 @@ class AmfiService {
     this.lastUpdated = new Date().toISOString();
     this.isInitialized = false;
     this.inFlightInitPromise = null;
+    this.inFlightPortalPromises = new Map();
+    this.completedDateWindows = new Set();
+    this.failedDateWindows = new Map(); // windowKey -> timestamp of failure (cooldown circuit breaker)
+    this.inFlightMfapiPromises = new Map(); // schemeCode -> Promise (deduplicate concurrent MFAPI requests)
 
     // Load persistent NAV history cache from disk on startup
     this.loadDiskNavCache();
+    // Load persistent historical AUM cache from disk on startup
+    this.loadDiskHistAumCache();
+  }
+
+  loadDiskHistAumCache() {
+    try {
+      if (fs.existsSync(HIST_AUM_CACHE_FILE)) {
+        const raw = fs.readFileSync(HIST_AUM_CACHE_FILE, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          let count = 0;
+          for (const [key, entries] of Object.entries(parsed)) {
+            if (Array.isArray(entries)) {
+              this.historicalAumCache.set(key, entries);
+              count += entries.length;
+            }
+          }
+          logger.info(`Loaded ${this.historicalAumCache.size} category-date snapshots with ${count} entries from historical AUM disk cache.`);
+        }
+      }
+    } catch (err) {
+      logger.warn(`Could not read historical AUM disk cache: ${err.message}`);
+    }
+  }
+
+  scheduleHistAumCacheSave() {
+    if (this._saveHistAumCacheTimer) return;
+    this._saveHistAumCacheTimer = setTimeout(() => {
+      this._saveHistAumCacheTimer = null;
+      try {
+        if (!fs.existsSync(CACHE_DIR)) {
+          fs.mkdirSync(CACHE_DIR, { recursive: true });
+        }
+        const obj = {};
+        for (const [key, val] of this.historicalAumCache.entries()) {
+          obj[key] = val;
+        }
+        fs.writeFileSync(HIST_AUM_CACHE_FILE, JSON.stringify(obj), 'utf-8');
+        logger.info(`Persisted ${this.historicalAumCache.size} historical AUM snapshots to disk cache.`);
+      } catch (err) {
+        logger.warn(`Failed to persist historical AUM cache to disk: ${err.message}`);
+      }
+    }, 4000);
   }
 
   loadDiskNavCache() {
@@ -235,6 +353,7 @@ class AmfiService {
           for (const [codeStr, entry] of Object.entries(parsed)) {
             const code = Number(codeStr);
             if (code && entry && Array.isArray(entry.navList)) {
+              entry.navList.sort((a, b) => parseNavDate(b.date).getTime() - parseNavDate(a.date).getTime());
               this.navHistoryCache.set(code, entry);
               count++;
             }
@@ -280,28 +399,277 @@ class AmfiService {
     return `₹${formattedNum} Cr`;
   }
 
+  getAmfiPairsForScheme(scheme) {
+    if (scheme.category && CATEGORY_TO_AMFI_PAIRS[scheme.category]) {
+      return CATEGORY_TO_AMFI_PAIRS[scheme.category];
+    }
+    if (scheme.subCategoryId > 0 && scheme.subCategoryId <= 12) {
+      return [{ category: 1, subCategory: scheme.subCategoryId }];
+    }
+    return [{ category: 1, subCategory: 1 }];
+  }
+
+  async fetchAmfiFundPerformancePair(dateStr, category, subCategory) {
+    const cacheKey = `${dateStr}_${category}_${subCategory}`;
+    if (this.historicalAumCache.has(cacheKey)) {
+      const cached = this.historicalAumCache.get(cacheKey);
+      if (Array.isArray(cached) && cached.length > 0) {
+        return cached;
+      }
+    }
+
+    if (this.inFlightHistAumPromises.has(cacheKey)) {
+      return this.inFlightHistAumPromises.get(cacheKey);
+    }
+
+    const fetchPromise = (async () => {
+      try {
+        const parsedDate = parseNavDate(dateStr);
+        if (isNaN(parsedDate.getTime()) || parsedDate.getTime() === 0) {
+          return [];
+        }
+
+        // Try candidate date and roll back up to 6 days for weekends/market holidays
+        for (let offset = 0; offset <= 6; offset++) {
+          const cand = new Date(parsedDate);
+          cand.setDate(parsedDate.getDate() - offset);
+          const candStr = formatAmfiDate(cand);
+          const candCacheKey = `${candStr}_${category}_${subCategory}`;
+
+          if (this.historicalAumCache.has(candCacheKey)) {
+            const cachedCand = this.historicalAumCache.get(candCacheKey);
+            if (Array.isArray(cachedCand) && cachedCand.length > 0) {
+              if (candStr !== dateStr) {
+                this.historicalAumCache.set(cacheKey, cachedCand);
+              }
+              return cachedCand;
+            }
+          }
+
+          const res = await fetch('https://www.amfiindia.com/gateway/pollingsebi/api/amfi/fundperformance', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+              'Accept': 'application/json, text/plain, */*',
+              'Origin': 'https://www.amfiindia.com',
+              'Referer': 'https://www.amfiindia.com/polling/amfi/'
+            },
+            body: JSON.stringify({
+              maturityType: 1,
+              category,
+              subCategory,
+              mfid: 0,
+              reportDate: candStr
+            }),
+            signal: AbortSignal.timeout(8000)
+          });
+
+          if (res.ok) {
+            const json = await res.json();
+            const list = json.data || [];
+            if (list.length > 0) {
+              const entries = [];
+              list.forEach(item => {
+                if (item.schemeName) {
+                  const rawAum = (item.dailyAUM !== null && item.dailyAUM !== undefined && item.dailyAUM !== '')
+                    ? item.dailyAUM
+                    : ((item.preMonthAvgAUM !== null && item.preMonthAvgAUM !== undefined && item.preMonthAvgAUM !== '')
+                      ? item.preMonthAvgAUM
+                      : item.preMonthAUM);
+                  const parsedAum = (rawAum !== null && rawAum !== undefined && rawAum !== '' && !isNaN(Number(rawAum))) ? Number(rawAum) : null;
+                  entries.push({
+                    rawName: item.schemeName,
+                    cleanName: cleanSchemeName(item.schemeName),
+                    dailyAUM: parsedAum,
+                    benchmark: item.benchmark ? String(item.benchmark).trim() : 'N/A',
+                    riskometerScheme: item.riskometerScheme ? String(item.riskometerScheme).trim() : 'N/A',
+                    riskometerBenchmark: item.riskometerBenchmark ? String(item.riskometerBenchmark).trim() : 'N/A',
+                    navDate: item.navDate ? String(item.navDate) : candStr,
+                    navRegular: item.navRegular ? Number(item.navRegular) : null,
+                    navDirect: item.navDirect ? Number(item.navDirect) : null,
+                    preNavRegular: item.preNavRegular ? Number(item.preNavRegular) : null,
+                    preNavDirect: item.preNavDirect ? Number(item.preNavDirect) : null,
+                    return1YearRegular: item.return1YearRegular ? Number(item.return1YearRegular) : null,
+                    return1YearDirect: item.return1YearDirect ? Number(item.return1YearDirect) : null,
+                    return3YearRegular: item.return3YearRegular ? Number(item.return3YearRegular) : null,
+                    return3YearDirect: item.return3YearDirect ? Number(item.return3YearDirect) : null,
+                    return5YearRegular: item.return5YearRegular ? Number(item.return5YearRegular) : null,
+                    return5YearDirect: item.return5YearDirect ? Number(item.return5YearDirect) : null,
+                    return10YearRegular: item.return10YearRegular ? Number(item.return10YearRegular) : null,
+                    return10YearDirect: item.return10YearDirect ? Number(item.return10YearDirect) : null,
+                    benchmarkReturn1Year: item.return1YearBenchmark ? Number(item.return1YearBenchmark) : null,
+                    benchmarkReturn3Year: item.return3YearBenchmark ? Number(item.return3YearBenchmark) : null,
+                    benchmarkReturn5Year: item.return5YearBenchmark ? Number(item.return5YearBenchmark) : null,
+                    benchmarkReturn10Year: item.return10YearBenchmark ? Number(item.return10YearBenchmark) : null
+                  });
+                }
+              });
+
+              if (entries.length > 0) {
+                this.historicalAumCache.set(candCacheKey, entries);
+                if (candStr !== dateStr) {
+                  this.historicalAumCache.set(cacheKey, entries);
+                }
+                this.scheduleHistAumCacheSave();
+                return entries;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        logger.warn(`Failed to fetch AMFI Fund Performance for ${cacheKey}: ${err.message}`);
+      } finally {
+        this.inFlightHistAumPromises.delete(cacheKey);
+      }
+      return [];
+    })();
+
+    this.inFlightHistAumPromises.set(cacheKey, fetchPromise);
+    return fetchPromise;
+  }
+
+  async resolveHistoricalAumForSchemes(targetDate, schemes) {
+    if (!targetDate || !schemes || schemes.length === 0) {
+      return null;
+    }
+
+    const parsedDate = parseNavDate(targetDate);
+    if (isNaN(parsedDate.getTime()) || parsedDate.getTime() === 0) {
+      return null;
+    }
+
+    const targetFormatted = formatAmfiDate(parsedDate);
+    // If target date is on or after live report date (e.g. today or future), use live registry AUM directly
+    if (this.reportDate) {
+      const repDate = parseNavDate(this.reportDate);
+      if (!isNaN(repDate.getTime()) && parsedDate.getTime() >= repDate.getTime()) {
+        return null;
+      }
+    }
+
+    // Determine needed pairs across schemes
+    const pairMap = new Map();
+    schemes.forEach(s => {
+      const pairs = this.getAmfiPairsForScheme(s);
+      pairs.forEach(p => {
+        pairMap.set(`${p.category}_${p.subCategory}`, p);
+      });
+    });
+    const neededPairs = Array.from(pairMap.values());
+    if (neededPairs.length === 0) return null;
+
+    // Fetch all needed pairs with bounded concurrency
+    const allEntries = [];
+    await pMap(neededPairs, async (p) => {
+      const entries = await this.fetchAmfiFundPerformancePair(targetFormatted, p.category, p.subCategory);
+      if (entries && entries.length > 0) {
+        for (const e of entries) allEntries.push(e);
+      }
+    }, 6);
+
+    if (allEntries.length === 0) return null;
+
+    // Build indexing maps for sub-millisecond matching
+    const cleanMap = new Map();
+    const tokenIndex = new Map();
+    const stopWords = new Set(['fund', 'direct', 'regular', 'plan', 'growth', 'option', 'scheme', 'series']);
+
+    allEntries.forEach(a => {
+      const cName = cleanSchemeName(a.rawName || a.schemeName || a.cleanName);
+      a.cleanName = cName;
+      cleanMap.set(cName, a);
+      const tokens = cName.split(' ').filter(w => w.length > 2 && !stopWords.has(w));
+      a._tokens = tokens;
+      a._tokensSet = new Set(tokens);
+      tokens.forEach(t => {
+        if (!tokenIndex.has(t)) tokenIndex.set(t, []);
+        tokenIndex.get(t).push(a);
+      });
+    });
+
+    const findMatch = (displayName) => {
+      if (!displayName) return null;
+      const sClean = cleanSchemeName(displayName);
+      if (cleanMap.has(sClean)) return cleanMap.get(sClean);
+
+      const sTokens = sClean.split(' ').filter(w => w.length > 2 && !stopWords.has(w));
+      if (sTokens.length >= 2) {
+        const primaryToken = sTokens[0];
+        const candidates = tokenIndex.get(primaryToken);
+        if (candidates && candidates.length > 0) {
+          const categoryTokens = ['largemidcap', 'largecap', 'midcap', 'smallcap', 'multicap', 'flexicap', 'elss', 'taxsaver', 'overnight', 'liquid', 'gilt', 'fof'];
+          const sCatTokens = sTokens.filter(t => categoryTokens.includes(t));
+
+          for (const a of candidates) {
+            const aCatTokens = a._tokens.filter(t => categoryTokens.includes(t));
+            if (sCatTokens.length > 0 && aCatTokens.length > 0 && sCatTokens[0] !== aCatTokens[0]) {
+              continue;
+            }
+            if ((a.cleanName.length > 5 && sClean.includes(a.cleanName)) ||
+                (sClean.length > 5 && a.cleanName.includes(sClean))) {
+              return a;
+            }
+          }
+          let best = null;
+          let highestOverlap = 0;
+          for (const a of candidates) {
+            const aCatTokens = a._tokens.filter(t => categoryTokens.includes(t));
+            if (sCatTokens.length > 0 && aCatTokens.length > 0 && sCatTokens[0] !== aCatTokens[0]) {
+              continue;
+            }
+            let overlap = 0;
+            for (const t of sTokens) {
+              if (a._tokensSet.has(t)) overlap++;
+            }
+            const ratio = overlap / Math.max(sTokens.length, a._tokens.length);
+            if (overlap >= 2 && ratio >= 0.55 && overlap > highestOverlap) {
+              highestOverlap = overlap;
+              best = a;
+            }
+          }
+          if (best) return best;
+        }
+      }
+      return null;
+    };
+
+    const resultMap = new Map();
+    schemes.forEach(s => {
+      const match = findMatch(s.displayName) || findMatch(s.amfiSchemeName);
+      if (match) {
+        resultMap.set(s.id, match);
+      }
+    });
+
+    const effectiveDateStr = allEntries[0]?.navDate || targetFormatted;
+    return {
+      map: resultMap,
+      effectiveDate: effectiveDateStr
+    };
+  }
+
   /**
    * Resolves the latest available mutual fund NAV date across India from authoritative feeds
    */
   async resolveLatestNavDate() {
-    const candidateCodes = [120152, 106235, 118834, 120503];
-    for (const code of candidateCodes) {
-      try {
-        const res = await fetch(`https://api.mfapi.in/mf/${code}`, {
-          signal: AbortSignal.timeout(3500)
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json?.data?.[0]?.date) {
-            const [d, m, y] = json.data[0].date.split('-');
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const monthName = months[parseInt(m, 10) - 1] || m;
-            return `${d}-${monthName}-${y}`;
+    try {
+      const res = await fetch('https://www.amfiindia.com/spages/NAVAll.txt', {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+        signal: AbortSignal.timeout(10000)
+      });
+      if (res.ok) {
+        const text = await res.text();
+        const lines = text.split('\n');
+        for (let l of lines) {
+          const parts = l.trim().split(';');
+          if (parts.length >= 8 && parts[7]?.trim()) {
+            return parts[7].trim();
           }
         }
-      } catch (err) {
-        // Continue to next candidate
       }
+    } catch (err) {
+      logger.warn(`Could not resolve latest NAV date from official AMFI NAVAll.txt: ${err.message}`);
     }
     return null;
   }
@@ -322,6 +690,13 @@ class AmfiService {
         if (parsed && Array.isArray(parsed.entries) && parsed.entries.length > 0) {
           diskCache = parsed;
           logger.info(`Loaded AMFI AUM disk cache with ${parsed.entries.length} schemes.`);
+          const cacheAgeMs = Date.now() - new Date(parsed.savedAt || 0).getTime();
+          if (parsed.entries.length >= 1500 && cacheAgeMs < 24 * 60 * 60 * 1000) {
+            logger.info(`Using warm AMFI AUM disk cache with ${parsed.entries.length} schemes (saved ${Math.round(cacheAgeMs / 60000)}m ago).`);
+            const latestNavDate = await this.resolveLatestNavDate();
+            this.reportDate = latestNavDate || parsed.reportDate;
+            return parsed.entries;
+          }
         }
       }
     } catch (e) {
@@ -340,6 +715,7 @@ class AmfiService {
       { category: 2, subCategory: 17 }, { category: 2, subCategory: 18 }, { category: 2, subCategory: 19 }, { category: 2, subCategory: 20 },
       { category: 2, subCategory: 21 }, { category: 2, subCategory: 22 }, { category: 2, subCategory: 23 }, { category: 2, subCategory: 24 },
       { category: 2, subCategory: 25 }, { category: 2, subCategory: 26 }, { category: 2, subCategory: 28 }, { category: 2, subCategory: 29 },
+      { category: 2, subCategory: 46 },
 
       // Category 3: Hybrid (Aggressive, Conservative, Arbitrage, Balanced Advantage, etc.)
       { category: 3, subCategory: 30 }, { category: 3, subCategory: 31 }, { category: 3, subCategory: 32 }, { category: 3, subCategory: 33 },
@@ -352,24 +728,27 @@ class AmfiService {
       { category: 5, subCategory: 38 }, { category: 5, subCategory: 39 }
     ];
 
-    let amfiEntries = [];
-    let resolvedDate = null;
+    const candidateDates = [];
     const today = new Date();
-
-    for (let dayOffset = 0; dayOffset <= 4; dayOffset++) {
+    for (let dayOffset = 0; dayOffset <= 6; dayOffset++) {
       const candidateDate = new Date(today);
       candidateDate.setDate(today.getDate() - dayOffset);
-      const dateStr = formatAmfiDate(candidateDate);
+      candidateDates.push(formatAmfiDate(candidateDate));
+    }
 
-      const dayEntries = [];
+    const collectedMap = new Map();
+    let resolvedDate = null;
 
-      await pMap(AMFI_QUERY_PAIRS, async (p) => {
+    await pMap(AMFI_QUERY_PAIRS, async (p) => {
+      for (const dateStr of candidateDates) {
         try {
           const res = await fetch('https://www.amfiindia.com/gateway/pollingsebi/api/amfi/fundperformance', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+              'Origin': 'https://www.amfiindia.com',
+              'Referer': 'https://www.amfiindia.com/polling/amfi/'
             },
             body: JSON.stringify({
               maturityType: 1,
@@ -378,41 +757,43 @@ class AmfiService {
               mfid: 0,
               reportDate: dateStr
             }),
-            signal: AbortSignal.timeout(3500)
+            signal: AbortSignal.timeout(6000)
           });
 
           if (res.ok) {
             const json = await res.json();
             const list = json.data || [];
-            list.forEach(item => {
-              if (item.schemeName) {
-                dayEntries.push({
-                  rawName: item.schemeName,
-                  cleanName: cleanSchemeName(item.schemeName),
-                  dailyAUM: item.dailyAUM ? Number(item.dailyAUM) : null,
-                  benchmark: item.benchmark ? String(item.benchmark).trim() : 'N/A',
-                  riskometerScheme: item.riskometerScheme ? String(item.riskometerScheme).trim() : 'N/A',
-                  navRegular: item.navRegular ? Number(item.navRegular) : null,
-                  navDirect: item.navDirect ? Number(item.navDirect) : null
-                });
-              }
-            });
+            if (list.length > 0) {
+              if (!resolvedDate) resolvedDate = dateStr;
+              list.forEach(item => {
+                if (item.schemeName) {
+                  const rawAum = (item.dailyAUM !== null && item.dailyAUM !== undefined && item.dailyAUM !== '')
+                    ? item.dailyAUM
+                    : ((item.preMonthAvgAUM !== null && item.preMonthAvgAUM !== undefined && item.preMonthAvgAUM !== '')
+                      ? item.preMonthAvgAUM
+                      : item.preMonthAUM);
+                  const parsedAum = (rawAum !== null && rawAum !== undefined && rawAum !== '' && !isNaN(Number(rawAum))) ? Number(rawAum) : null;
+                  collectedMap.set(item.schemeName, {
+                    rawName: item.schemeName,
+                    cleanName: cleanSchemeName(item.schemeName),
+                    dailyAUM: parsedAum,
+                    benchmark: item.benchmark ? String(item.benchmark).trim() : 'N/A',
+                    riskometerScheme: item.riskometerScheme ? String(item.riskometerScheme).trim() : 'N/A',
+                    navRegular: item.navRegular ? Number(item.navRegular) : null,
+                    navDirect: item.navDirect ? Number(item.navDirect) : null
+                  });
+                }
+              });
+              break;
+            }
           }
         } catch (err) {}
-      }, 8);
-
-      if (dayEntries.length > amfiEntries.length) {
-        amfiEntries = dayEntries;
-        resolvedDate = dateStr;
       }
+    }, 6);
 
-      if (amfiEntries.length >= 1800) {
-        logger.info(`Successfully fetched full set of ${amfiEntries.length} live AMFI AUM entries across all categories for report date ${dateStr}!`);
-        break;
-      }
-    }
+    let amfiEntries = Array.from(collectedMap.values());
 
-    if (amfiEntries.length > 0) {
+    if (amfiEntries.length >= 1000) {
       try {
         if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
         fs.writeFileSync(AUM_CACHE_FILE, JSON.stringify({
@@ -420,10 +801,11 @@ class AmfiService {
           reportDate: resolvedDate,
           entries: amfiEntries
         }), 'utf-8');
+        logger.info(`Persisted ${amfiEntries.length} complete AMFI AUM entries across all categories to disk cache.`);
       } catch (err) {
         logger.warn(`Failed to write AMFI AUM cache to disk: ${err.message}`);
       }
-    } else if (diskCache) {
+    } else if (diskCache && Array.isArray(diskCache.entries) && diskCache.entries.length > 0) {
       logger.info(`Using disk-cached ${diskCache.entries.length} AMFI AUM entries.`);
       amfiEntries = diskCache.entries;
       resolvedDate = diskCache.reportDate;
@@ -458,28 +840,118 @@ class AmfiService {
         // 1. Fetch live AMFI AUM dataset across all categories
         const amfiList = await this.fetchAmfiLiveAumData();
 
-        // 2. Fetch full master scheme directory from official API endpoint
-        const res = await fetch('https://api.mfapi.in/mf', { signal: AbortSignal.timeout(15000) });
-        if (!res.ok) throw new Error(`Failed to fetch master scheme list: HTTP ${res.status}`);
-        const rawList = await res.json();
+        // 2. Fetch full master scheme directory directly from official AMFI NAVAll.txt with persistent disk fallback
+        let text = '';
+        try {
+          const res = await fetch('https://www.amfiindia.com/spages/NAVAll.txt', {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+            signal: AbortSignal.timeout(20000)
+          });
+          if (res.ok) {
+            text = await res.text();
+            if (text && text.length > 1000) {
+              try {
+                if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+                fs.writeFileSync(NAVALL_CACHE_FILE, text, 'utf-8');
+              } catch (writeErr) {
+                logger.warn(`Could not persist navall_cache.txt: ${writeErr.message}`);
+              }
+            }
+          }
+        } catch (fetchErr) {
+          logger.warn(`Could not fetch live NAVAll.txt from AMFI: ${fetchErr.message}. Attempting disk cache fallback...`);
+        }
 
-        logger.info(`Retrieved ${rawList.length} total raw schemes from master source.`);
+        if (!text && fs.existsSync(NAVALL_CACHE_FILE)) {
+          text = fs.readFileSync(NAVALL_CACHE_FILE, 'utf-8');
+          logger.info(`Loaded master scheme list from disk cache (${NAVALL_CACHE_FILE}).`);
+        }
+
+        if (!text) throw new Error('Failed to retrieve master scheme list from AMFI and no disk cache available.');
+        const lines = text.split('\n');
+        const rawList = [];
+        let currentCategory = '';
+        let currentAmc = '';
+        let detectedNavDate = null;
+
+        for (let line of lines) {
+          line = line.trim();
+          if (!line) continue;
+
+          if (line.startsWith('Open Ended Schemes') || line.startsWith('Close Ended Schemes') || line.startsWith('Interval Fund')) {
+            currentCategory = line;
+            continue;
+          }
+
+          if (line.endsWith('Mutual Fund') || line.includes('Mutual Fund')) {
+            currentAmc = line;
+            continue;
+          }
+
+          const parts = line.split(';');
+          if (parts.length >= 6 && !isNaN(Number(parts[0]))) {
+            const schemeCode = Number(parts[0]);
+            const schemeName = parts[3]?.trim();
+            const plan = parts[4]?.trim() || '';
+            const option = parts[5]?.trim() || '';
+            const nav = parseFloat(parts[6]) || null;
+            const navDate = parts[7]?.trim() || '';
+
+            if (schemeCode && schemeName) {
+              if (navDate && !detectedNavDate) {
+                detectedNavDate = navDate;
+              }
+              let fullName = schemeName;
+              if (plan && !fullName.toLowerCase().includes(plan.toLowerCase())) {
+                fullName += ` - ${plan}`;
+              }
+              if (option && !fullName.toLowerCase().includes(option.toLowerCase())) {
+                fullName += ` - ${option}`;
+              }
+
+              rawList.push({
+                schemeCode,
+                schemeName: fullName,
+                baseSchemeName: schemeName,
+                plan,
+                option,
+                currentNav: nav,
+                navDate,
+                category: currentCategory,
+                amc: currentAmc
+              });
+            }
+          }
+        }
+        if (detectedNavDate) {
+          this.reportDate = detectedNavDate;
+        }
+
+        logger.info(`Retrieved ${rawList.length} total raw schemes from official AMFI NAVAll.txt.`);
 
         const pairedMap = new Map();
 
-        const stopWords = new Set(['fund', 'scheme', 'plan', 'growth', 'option', 'plus', 'direct', 'regular', 'retail', 'institutional']);
+        const stopWords = new Set([
+          'fund', 'scheme', 'plan', 'growth', 'option', 'plus', 'direct', 'regular',
+          'retail', 'institutional', 'idcw', 'dividend', 'income', 'distribution',
+          'cum', 'capital', 'withdrawal', 'payout', 'reinvestment', 'reinv'
+        ]);
 
         // Build cleanName -> amfiItem map for instant exact matching
         const cleanToAmfiMap = new Map();
         // Inverted index for fast candidate lookup by primary/brand token
         const amfiTokenIndex = new Map();
+        const CATEGORY_TOKENS_SET = new Set(['largemidcap', 'largecap', 'midcap', 'smallcap', 'multicap', 'flexicap', 'elss', 'taxsaver', 'overnight', 'liquid', 'gilt', 'fof']);
 
         amfiList.forEach(a => {
-          if (!cleanToAmfiMap.has(a.cleanName)) {
-            cleanToAmfiMap.set(a.cleanName, a);
+          const cName = cleanSchemeName(a.rawName || a.schemeName || a.cleanName);
+          a.cleanName = cName;
+          if (!cleanToAmfiMap.has(cName)) {
+            cleanToAmfiMap.set(cName, a);
           }
-          a._tokens = a.cleanName.split(' ').filter(w => w.length > 2 && !stopWords.has(w));
+          a._tokens = cName.split(' ').filter(w => w.length > 2 && !stopWords.has(w));
           a._tokensSet = new Set(a._tokens);
+          a._catToken = a._tokens.find(t => CATEGORY_TOKENS_SET.has(t)) || null;
 
           a._tokens.forEach(t => {
             if (!amfiTokenIndex.has(t)) {
@@ -488,6 +960,19 @@ class AmfiService {
             amfiTokenIndex.get(t).push(a);
           });
         });
+
+        // Build histCleanMap for instant O(1) historical snapshot fallback
+        const histCleanMap = new Map();
+        if (this.historicalAumCache && this.historicalAumCache.size > 0) {
+          for (const entries of this.historicalAumCache.values()) {
+            if (Array.isArray(entries)) {
+              for (const e of entries) {
+                const eClean = cleanSchemeName(e.rawName || e.schemeName || e.cleanName);
+                if (!histCleanMap.has(eClean)) histCleanMap.set(eClean, e);
+              }
+            }
+          }
+        }
 
         // Sub-millisecond matching helper to associate scheme names with AMFI AUM records
         const findAmfiMatch = (displayName) => {
@@ -503,8 +988,11 @@ class AmfiService {
             const primaryToken = sTokens[0];
             const candidates = amfiTokenIndex.get(primaryToken);
             if (candidates && candidates.length > 0) {
+              const sCatToken = sTokens.find(t => CATEGORY_TOKENS_SET.has(t)) || null;
+
               // Substring check on candidate subset
               for (const a of candidates) {
+                if (sCatToken && a._catToken && sCatToken !== a._catToken) continue;
                 if ((a.cleanName.length > 5 && sClean.includes(a.cleanName)) ||
                     (sClean.length > 5 && a.cleanName.includes(sClean))) {
                   return a;
@@ -515,12 +1003,13 @@ class AmfiService {
               let best = null;
               let highestOverlap = 0;
               for (const a of candidates) {
+                if (sCatToken && a._catToken && sCatToken !== a._catToken) continue;
                 let overlap = 0;
                 for (const t of sTokens) {
                   if (a._tokensSet.has(t)) overlap++;
                 }
                 const ratio = overlap / Math.max(sTokens.length, a._tokens.length);
-                if (overlap >= 2 && ratio >= 0.55 && overlap > highestOverlap) {
+                if (overlap >= 2 && ratio >= 0.50 && overlap > highestOverlap) {
                   highestOverlap = overlap;
                   best = a;
                 }
@@ -528,6 +1017,9 @@ class AmfiService {
               if (best) return best;
             }
           }
+
+          // 3. Fallback to historical AUM cache snapshots in O(1)
+          if (histCleanMap.has(sClean)) return histCleanMap.get(sClean);
 
           return null;
         };
@@ -553,20 +1045,21 @@ class AmfiService {
             riskometerScheme: (match && match.riskometerScheme !== 'N/A') ? match.riskometerScheme : 'Very High',
             navRegular: (match && match.navRegular) ? match.navRegular : (allowItem.seedNavReg || 100.0),
             navDirect: (match && match.navDirect) ? match.navDirect : (allowItem.seedNavDir || 110.0),
-            seedReturns: allowItem.seedReturns || null
+            seedReturns: allowItem.seedReturns || null,
+            amfiMatch: match || null
           };
           pairedMap.set(allowItem.id, item);
         });
 
         // Build code-to-item and cleanName-to-item maps for O(1) fast lookup
         const codeToItemMap = new Map();
-        const cleanNameToItemMap = new Map();
+        const allowlistCleanMap = new Map();
 
         pairedMap.forEach(item => {
           if (item.regularSchemeCode) codeToItemMap.set(Number(item.regularSchemeCode), item);
           if (item.directSchemeCode) codeToItemMap.set(Number(item.directSchemeCode), item);
-          if (item.displayName) cleanNameToItemMap.set(cleanSchemeName(item.displayName), item);
-          if (item.amfiSchemeName) cleanNameToItemMap.set(cleanSchemeName(item.amfiSchemeName), item);
+          if (item.displayName) allowlistCleanMap.set(cleanSchemeName(item.displayName), item);
+          if (item.amfiSchemeName) allowlistCleanMap.set(cleanSchemeName(item.amfiSchemeName), item);
         });
 
         // 2. Pair schemes dynamically across all AMCs and option types (Growth, Bonus, IDCW)
@@ -601,20 +1094,19 @@ class AmfiService {
           const slugId = baseName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
           const sClean = cleanSchemeName(baseName);
 
-          // Check if slugId or clean name matches an existing allowlist item in O(1)
-          let existing = pairedMap.get(slugId) || cleanNameToItemMap.get(sClean);
+          // Check if slugId matches an existing item, or matches an allowlist item in O(1)
+          let existing = pairedMap.get(slugId) || allowlistCleanMap.get(sClean);
           if (existing && !pairedMap.has(slugId)) {
             pairedMap.set(slugId, existing);
           }
 
           if (!existing) {
+            const match = findAmfiMatch(baseName);
             // Extract AMC Name from scheme prefix
             const amcParts = baseName.split(' ');
             const amcName = amcParts.length > 2 ? `${amcParts[0]} ${amcParts[1]} Mutual Fund` : 'Mutual Fund';
             const cat = categorizeScheme('', baseName);
             const schemeOption = determineSchemeOption(baseName);
-
-            const match = findAmfiMatch(baseName);
             const aumVal = match ? match.dailyAUM : null;
 
             const newItem = {
@@ -631,19 +1123,22 @@ class AmfiService {
               dailyAUMFormatted: this.formatAUM(aumVal),
               benchmark: match ? match.benchmark : 'N/A',
               riskometerScheme: match ? match.riskometerScheme : 'N/A',
-              navRegular: null,
-              navDirect: null
+              navRegular: isDirect ? null : (s.currentNav || null),
+              navDirect: isDirect ? (s.currentNav || null) : null,
+              amfiMatch: match || null
             };
 
             pairedMap.set(slugId, newItem);
             codeToItemMap.set(code, newItem);
-            cleanNameToItemMap.set(sClean, newItem);
           } else {
+            if (!existing.amfiMatch) existing.amfiMatch = findAmfiMatch(baseName);
             if (isDirect && !existing.directSchemeCode) {
               existing.directSchemeCode = code;
+              if (!existing.navDirect && s.currentNav) existing.navDirect = s.currentNav;
               codeToItemMap.set(code, existing);
             } else if (!isDirect && !existing.regularSchemeCode) {
               existing.regularSchemeCode = code;
+              if (!existing.navRegular && s.currentNav) existing.navRegular = s.currentNav;
               codeToItemMap.set(code, existing);
             }
           }
@@ -687,51 +1182,321 @@ class AmfiService {
   }
 
   /**
-   * Fetch historical NAV time series for a schemeCode with caching
+   * Fetch and ingest an official AMFI date window for all schemes with in-flight promise deduplication
    */
-  async getNavHistory(schemeCode) {
+  async fetchAmfiPortalDateWindow(fromStr, toStr) {
+    const key = `${fromStr}_${toStr}`;
+    if (this.completedDateWindows.has(key)) {
+      return;
+    }
+    // Circuit breaker: If this window failed recently (within 5 minutes), avoid hammering AMFI repeatedly
+    const lastFailed = this.failedDateWindows.get(key);
+    if (lastFailed && (Date.now() - lastFailed < 5 * 60 * 1000)) {
+      return;
+    }
+    if (this.inFlightPortalPromises.has(key)) {
+      return this.inFlightPortalPromises.get(key);
+    }
+
+    const promise = (async () => {
+      try {
+        const url = `https://portal.amfiindia.com/DownloadNAVHistoryReport_Po.aspx?frmdt=${fromStr}&todt=${toStr}`;
+        const res = await fetch(url, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+          signal: AbortSignal.timeout(30000)
+        });
+        if (!res.ok) {
+          this.failedDateWindows.set(key, Date.now());
+          return;
+        }
+
+        const text = await res.text();
+        const lines = text.split('\n');
+        for (const l of lines) {
+          const parts = l.split(';');
+          if (parts.length >= 7 && !isNaN(Number(parts[0]))) {
+            const sCode = Number(parts[0]);
+            const nav = parseFloat(parts[6]);
+            const date = parts[7]?.trim();
+            if (!isNaN(nav) && date) {
+              if (!this.navHistoryCache.has(sCode)) {
+                this.navHistoryCache.set(sCode, { navList: [], timestamp: Date.now() });
+              }
+              const sEntry = this.navHistoryCache.get(sCode);
+              if (Array.isArray(sEntry.navList) && !sEntry.navList.some(r => r.date === date)) {
+                sEntry.navList.push({ date, nav });
+              }
+            }
+          }
+        }
+        this.completedDateWindows.add(key);
+        this.failedDateWindows.delete(key);
+      } catch (err) {
+        this.failedDateWindows.set(key, Date.now());
+        logger.warn(`Error querying official AMFI portal for date range ${fromStr} to ${toStr}: ${err.message}`);
+      } finally {
+        this.inFlightPortalPromises.delete(key);
+      }
+    })();
+
+    this.inFlightPortalPromises.set(key, promise);
+    return promise;
+  }
+
+  /**
+   * Fetch complete historical NAV series from high-speed MFAPI fallback
+   * Endpoint: https://api.mfapi.in/mf/${schemeCode}
+   */
+  async fetchMfapiNavHistory(schemeCode) {
+    const code = Number(schemeCode);
+    if (!code) return [];
+
+    if (this.inFlightMfapiPromises.has(code)) {
+      return this.inFlightMfapiPromises.get(code);
+    }
+
+    const promise = (async () => {
+      try {
+        const url = `https://api.mfapi.in/mf/${code}`;
+        const res = await fetch(url, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+          signal: AbortSignal.timeout(12000)
+        });
+        if (!res.ok) {
+          logger.warn(`MFAPI returned HTTP ${res.status} for scheme ${code}`);
+          return [];
+        }
+
+        const json = await res.json();
+        if (!json || !Array.isArray(json.data) || json.data.length === 0) {
+          return [];
+        }
+
+        const navList = [];
+        for (const item of json.data) {
+          const navVal = parseFloat(item.nav);
+          if (!isNaN(navVal) && item.date) {
+            const dObj = parseNavDate(item.date);
+            if (dObj && dObj.getTime() > 0) {
+              navList.push({
+                date: formatAmfiDate(dObj),
+                nav: navVal
+              });
+            }
+          }
+        }
+
+        if (navList.length > 0) {
+          navList.sort((a, b) => parseNavDate(b.date).getTime() - parseNavDate(a.date).getTime());
+
+          const existing = this.navHistoryCache.get(code);
+          let mergedList = navList;
+          if (existing && Array.isArray(existing.navList)) {
+            const map = new Map();
+            existing.navList.forEach(r => map.set(r.date, r));
+            navList.forEach(r => map.set(r.date, r));
+            mergedList = Array.from(map.values()).sort((a, b) => parseNavDate(b.date).getTime() - parseNavDate(a.date).getTime());
+          }
+
+          this.navHistoryCache.set(code, {
+            navList: mergedList,
+            timestamp: Date.now()
+          });
+          this.scheduleNavCacheSave();
+          logger.info(`Successfully fetched and cached ${mergedList.length} historical NAV records for scheme ${code} via MFAPI fallback.`);
+          return mergedList;
+        }
+        return [];
+      } catch (err) {
+        logger.warn(`Failed to fetch NAV history from MFAPI for scheme ${code}: ${err.message}`);
+        return [];
+      } finally {
+        this.inFlightMfapiPromises.delete(code);
+      }
+    })();
+
+    this.inFlightMfapiPromises.set(code, promise);
+    return promise;
+  }
+
+  /**
+   * Fetch historical NAV records directly from official AMFI portal with automatic MFAPI fallback
+   */
+  async fetchOfficialAmfiNavHistory(code, minRequiredDate = null) {
+    const codeStr = String(code);
+    const targetDates = [];
+    const anchorDate = minRequiredDate || this.reportDate;
+    const anchor = parseNavDate(anchorDate);
+
+    targetDates.push(anchor);
+    [1, 2, 3, 5, 10].forEach(T => {
+      const d = new Date(anchor);
+      d.setFullYear(d.getFullYear() - T);
+      targetDates.push(d);
+    });
+    [15, 30, 33, 45, 50, 60, 67, 180].forEach(D => {
+      const d = new Date(anchor);
+      d.setDate(d.getDate() - D);
+      targetDates.push(d);
+    });
+
+    const cached = this.navHistoryCache.get(code);
+    const fetchedMap = new Map();
+    if (cached && Array.isArray(cached.navList)) {
+      cached.navList.forEach(r => fetchedMap.set(r.date, r));
+    }
+
+    const missingTargets = targetDates.filter(tDate => {
+      const sDate = new Date(tDate);
+      sDate.setDate(sDate.getDate() - 10);
+      const fromStr = formatAmfiDate(sDate);
+      const toStr = formatAmfiDate(tDate);
+      const windowKey = `${fromStr}_${toStr}`;
+
+      // If this date window has already been downloaded and ingested across India,
+      // and this scheme was not present, the fund did not exist on that date.
+      if (this.completedDateWindows.has(windowKey)) {
+        return false;
+      }
+
+      return !Array.from(fetchedMap.values()).some(r => {
+        const rDate = parseNavDate(r.date);
+        const diffDays = Math.abs((rDate - tDate) / (1000 * 60 * 60 * 24));
+        return diffDays <= 7;
+      });
+    });
+
+    if (missingTargets.length > 0) {
+      let hadFailure = false;
+      for (const tDate of missingTargets) {
+        const sDate = new Date(tDate);
+        sDate.setDate(sDate.getDate() - 10);
+        const fromStr = formatAmfiDate(sDate);
+        const toStr = formatAmfiDate(tDate);
+        const windowKey = `${fromStr}_${toStr}`;
+
+        // If circuit breaker is tripped for this window, skip attempting AMFI
+        const lastFailed = this.failedDateWindows.get(windowKey);
+        if (lastFailed && (Date.now() - lastFailed < 5 * 60 * 1000)) {
+          hadFailure = true;
+          continue;
+        }
+
+        await this.fetchAmfiPortalDateWindow(fromStr, toStr);
+        if (this.failedDateWindows.has(windowKey)) {
+          hadFailure = true;
+        }
+      }
+
+      // Re-read updated records from cache after window fetch
+      const updatedCache = this.navHistoryCache.get(code);
+      if (updatedCache && Array.isArray(updatedCache.navList)) {
+        updatedCache.navList.forEach(r => fetchedMap.set(r.date, r));
+      }
+
+      // Verify if all required target dates have been covered
+      const stillMissing = targetDates.some(tDate => {
+        return !Array.from(fetchedMap.values()).some(r => {
+          const rDate = parseNavDate(r.date);
+          const diffDays = Math.abs((rDate - tDate) / (1000 * 60 * 60 * 24));
+          return diffDays <= 7;
+        });
+      });
+
+      // If dates are missing or AMFI timed out, invoke high-speed MFAPI fallback
+      if (stillMissing || hadFailure) {
+        logger.info(`Invoking fast MFAPI fallback for scheme ${code} due to missing dates or AMFI portal timeout...`);
+        const mfapiList = await this.fetchMfapiNavHistory(code);
+        if (mfapiList && mfapiList.length > 0) {
+          return mfapiList;
+        }
+      }
+    }
+
+    const navList = Array.from(fetchedMap.values()).sort((a, b) => parseNavDate(b.date) - parseNavDate(a.date));
+    if (navList.length > 0) {
+      this.navHistoryCache.set(code, {
+        navList,
+        timestamp: Date.now()
+      });
+      this.scheduleNavCacheSave();
+    }
+    return navList;
+  }
+
+  /**
+   * Fetch historical NAV time series for a schemeCode with caching and MFAPI fallback
+   * @param {number|string} schemeCode
+   * @param {string|Date} minRequiredDate Optional minimum date that must be covered in the time series
+   */
+  async getNavHistory(schemeCode, minRequiredDate = null) {
     if (!schemeCode) return [];
     const code = Number(schemeCode);
 
     const now = Date.now();
     const cached = this.navHistoryCache.get(code);
-    if (cached && (now - cached.timestamp < AMFI_CACHE_TTL * 1000)) {
-      return cached.navList;
+    if (cached && Array.isArray(cached.navList) && cached.navList.length > 0) {
+      if (!minRequiredDate) {
+        return cached.navList;
+      }
+      const reqDate = parseNavDate(minRequiredDate);
+      if (!reqDate || isNaN(reqDate.getTime()) || reqDate.getTime() === 0) {
+        return cached.navList;
+      }
+
+      // Check if cached navList actually covers reqDate (i.e. has a record within 7 days of reqDate)
+      const coversReqDate = cached.navList.some(r => {
+        const rDate = parseNavDate(r.date);
+        return Math.abs((rDate.getTime() - reqDate.getTime()) / (1000 * 60 * 60 * 24)) <= 7;
+      });
+      if (coversReqDate) {
+        return cached.navList;
+      }
     }
 
     try {
-      const res = await fetch(`https://api.mfapi.in/mf/${code}`, { signal: AbortSignal.timeout(3500) });
-      if (!res.ok) return cached ? cached.navList : [];
-      const payload = await res.json();
-      const navList = payload.data || [];
-      if (navList.length > 0) {
-        this.navHistoryCache.set(code, {
-          navList,
-          timestamp: now
-        });
-        this.scheduleNavCacheSave();
+      const list = await this.fetchOfficialAmfiNavHistory(code, minRequiredDate);
+      if (list && list.length > 0) {
+        return list;
       }
-      return navList;
     } catch (err) {
-      logger.warn(`Failed to fetch NAV history for scheme code ${code}: ${err.message}`);
-      if (cached) return cached.navList;
-      return [];
+      logger.warn(`Failed to fetch official AMFI NAV history for scheme code ${code}: ${err.message}`);
     }
+
+    // Direct fallback to MFAPI if AMFI returned empty or failed
+    try {
+      const mfapiList = await this.fetchMfapiNavHistory(code);
+      if (mfapiList && mfapiList.length > 0) {
+        return mfapiList;
+      }
+    } catch (mfErr) {
+      logger.warn(`MFAPI fallback error for scheme code ${code}: ${mfErr.message}`);
+    }
+
+    if (cached) return cached.navList;
+    return [];
   }
 
   /**
    * Calculate returns for a single plan (Regular or Direct)
    */
-  async computeSinglePlanReturns(scheme, plan = 'regular', customDays = '33,50,67', startDate = null, endDate = null, asOfDate = null) {
+  async computeSinglePlanReturns(scheme, plan = 'regular', customDays = '33,50,67', startDate = null, endDate = null, asOfDate = null, histMatch = null) {
     const isDirect = plan.toLowerCase() === 'direct';
     const schemeCode = (isDirect ? scheme.directSchemeCode : scheme.regularSchemeCode) || scheme.regularSchemeCode || scheme.directSchemeCode;
     const daysList = parseDaysList(customDays);
+    const targetAnchorDate = asOfDate || this.reportDate;
 
     if (schemeCode) {
       const cacheKey = `${schemeCode}_${isDirect ? 'dir' : 'reg'}_${daysList.join(',')}_${startDate || ''}_${endDate || ''}_${asOfDate || ''}`;
       const cached = this.computedCache.get(cacheKey);
       if (cached && (Date.now() - cached.timestamp < AMFI_CACHE_TTL * 1000)) {
-        return cached.data;
+        // Verify that cached computation navDate is not behind the target anchor date
+        const targetReqDate = parseNavDate(targetAnchorDate);
+        const cachedNavDate = parseNavDate(cached.data?.navDate);
+        const isTargetCurrentOrFuture = this.reportDate && targetReqDate && targetReqDate.getTime() >= parseNavDate(this.reportDate).getTime();
+        if (isTargetCurrentOrFuture || !targetReqDate || !cachedNavDate || cachedNavDate.getTime() >= targetReqDate.getTime()) {
+          return cached.data;
+        }
       }
     }
 
@@ -773,21 +1538,37 @@ class AmfiService {
       return resultReturns;
     }
 
-    const navList = await this.getNavHistory(schemeCode);
+    const navList = await this.getNavHistory(schemeCode, targetAnchorDate);
     if (!navList || navList.length === 0) {
       return resultReturns;
     }
 
+    // Ensure navList is strictly sorted descending by date (newest first)
+    const sortedNavList = [...navList].sort((a, b) => parseNavDate(b.date).getTime() - parseNavDate(a.date).getTime());
+
     // Determine anchor valuation NAV (latest or as-of-date)
-    let latestObj = navList[0];
+    let latestObj = sortedNavList[0];
     if (asOfDate) {
       const targetValDate = parseNavDate(asOfDate);
       if (!isNaN(targetValDate.getTime()) && targetValDate.getTime() > 0) {
-        const found = navList.find(item => parseNavDate(item.date).getTime() <= targetValDate.getTime());
+        // Find latest available NAV on or before target valuation date
+        const found = sortedNavList.find(item => parseNavDate(item.date).getTime() <= targetValDate.getTime());
         if (found) {
           latestObj = found;
+        } else {
+          // If no record preceding or matching targetValDate, fall back to latest available record
+          latestObj = sortedNavList[0];
         }
       }
+    }
+
+    if (!latestObj) {
+      const fallbackNav = (histMatch && (isDirect ? histMatch.navDirect : histMatch.navRegular))
+        ? (isDirect ? histMatch.navDirect : histMatch.navRegular)
+        : (isDirect ? scheme.navDirect : scheme.navRegular);
+      resultReturns.currentNav = fallbackNav;
+      resultReturns.navDate = asOfDate ? formatAmfiDate(parseNavDate(asOfDate)) : this.reportDate;
+      return resultReturns;
     }
 
     const VT = Number(latestObj.nav);
@@ -810,7 +1591,7 @@ class AmfiService {
       targetDate.setFullYear(targetDate.getFullYear() - T);
 
       // Find closest available preceding NAV date
-      const v0Record = navList.find(item => parseNavDate(item.date) <= targetDate);
+      const v0Record = sortedNavList.find(item => parseNavDate(item.date).getTime() <= targetDate.getTime());
       if (v0Record) {
         const V0 = Number(v0Record.nav);
         resultReturns[key] = calculateFormulaReturn(V0, VT, T);
@@ -823,7 +1604,7 @@ class AmfiService {
     daysList.forEach((D) => {
       const targetDate = new Date(latestDate);
       targetDate.setDate(targetDate.getDate() - D);
-      const v0Record = navList.find(item => parseNavDate(item.date) <= targetDate);
+      const v0Record = sortedNavList.find(item => parseNavDate(item.date).getTime() <= targetDate.getTime());
       if (v0Record) {
         const V0 = Number(v0Record.nav);
         const retVal = calculateDayFormulaReturn(V0, VT, D);
@@ -850,8 +1631,8 @@ class AmfiService {
         const diffMs = eDate.getTime() - sDate.getTime();
         const cDays = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)));
 
-        const vtRecord = navList.find(item => parseNavDate(item.date) <= eDate) || latestObj;
-        const v0Record = navList.find(item => parseNavDate(item.date) <= sDate);
+        const vtRecord = sortedNavList.find(item => parseNavDate(item.date).getTime() <= eDate.getTime()) || latestObj;
+        const v0Record = sortedNavList.find(item => parseNavDate(item.date).getTime() <= sDate.getTime());
 
         if (vtRecord && v0Record) {
           const VT_custom = Number(vtRecord.nav);
@@ -862,7 +1643,7 @@ class AmfiService {
       }
     }
 
-    if (schemeCode) {
+    if (schemeCode && resultReturns.currentNav !== null) {
       const cacheKey = `${schemeCode}_${isDirect ? 'dir' : 'reg'}_${daysList.join(',')}_${startDate || ''}_${endDate || ''}_${asOfDate || ''}`;
       this.computedCache.set(cacheKey, { data: resultReturns, timestamp: Date.now() });
     }
@@ -873,10 +1654,10 @@ class AmfiService {
   /**
    * Calculate 1Y, 2Y, 3Y, 5Y, 10Y and custom days formula returns for a scheme under the requested plan ('regular', 'direct', or 'both')
    */
-  async computeReturnsForScheme(scheme, plan = 'regular', customDays = '33,50,67', startDate = null, endDate = null, asOfDate = null) {
+  async computeReturnsForScheme(scheme, plan = 'regular', customDays = '33,50,67', startDate = null, endDate = null, asOfDate = null, histMatch = null) {
     if (plan && plan.toLowerCase() === 'both') {
-      const reg = await this.computeSinglePlanReturns(scheme, 'regular', customDays, startDate, endDate, asOfDate);
-      const dir = await this.computeSinglePlanReturns(scheme, 'direct', customDays, startDate, endDate, asOfDate);
+      const reg = await this.computeSinglePlanReturns(scheme, 'regular', customDays, startDate, endDate, asOfDate, histMatch);
+      const dir = await this.computeSinglePlanReturns(scheme, 'direct', customDays, startDate, endDate, asOfDate, histMatch);
       const daysList = parseDaysList(customDays);
 
       const combined = {
@@ -914,7 +1695,7 @@ class AmfiService {
       return combined;
     }
 
-    return this.computeSinglePlanReturns(scheme, plan, customDays, startDate, endDate, asOfDate);
+    return this.computeSinglePlanReturns(scheme, plan, customDays, startDate, endDate, asOfDate, histMatch);
   }
 
   /**
@@ -996,11 +1777,38 @@ class AmfiService {
     const startIndex = (pageNum - 1) * limitNum;
     const pageItems = filtered.slice(startIndex, startIndex + limitNum);
 
+    // Resolve historical AUM if asOfDate is specified
+    const histAumRes = await this.resolveHistoricalAumForSchemes(asOfDate, pageItems);
+    const histAumMap = histAumRes?.map;
+
     // Compute returns for current page items with bounded concurrency
     const fundsWithReturns = await pMap(
       pageItems,
       async (scheme) => {
-        const computed = await this.computeReturnsForScheme(scheme, plan, daysList, startDate, endDate, asOfDate);
+        const histMatch = histAumMap ? histAumMap.get(scheme.id) : null;
+        const m = histMatch || scheme.amfiMatch;
+        const computed = await this.computeReturnsForScheme(scheme, plan, daysList, startDate, endDate, asOfDate, histMatch);
+        const dailyAUMRaw = (m && m.dailyAUM !== null)
+          ? m.dailyAUM
+          : (scheme.dailyAUMRaw !== null ? scheme.dailyAUMRaw : null);
+        const dailyAUMFormatted = (m && m.dailyAUM !== null)
+          ? this.formatAUM(m.dailyAUM)
+          : (scheme.dailyAUMFormatted && scheme.dailyAUMFormatted !== 'N/A' ? scheme.dailyAUMFormatted : (dailyAUMRaw ? this.formatAUM(dailyAUMRaw) : 'N/A'));
+        const benchmark = (m && m.benchmark && m.benchmark !== 'N/A') ? m.benchmark : scheme.benchmark;
+        const riskometerScheme = (m && m.riskometerScheme && m.riskometerScheme !== 'N/A') ? m.riskometerScheme : scheme.riskometerScheme;
+
+        const isDir = plan.toLowerCase() === 'direct';
+
+        const navRegular = (histMatch && histMatch.navRegular)
+          ? histMatch.navRegular
+          : (computed.regNav || (isDir ? null : computed.currentNav) || scheme.navRegular || null);
+        const navDirect = (histMatch && histMatch.navDirect)
+          ? histMatch.navDirect
+          : (computed.dirNav || (isDir ? computed.currentNav : null) || scheme.navDirect || null);
+        const currentNav = computed.currentNav || (histMatch && (isDir ? histMatch.navDirect : histMatch.navRegular))
+          || (isDir ? (navDirect || navRegular) : (navRegular || navDirect));
+        const navDate = computed.navDate || (histMatch && histMatch.navDate) || (histAumRes?.effectiveDate) || (asOfDate ? formatAmfiDate(parseNavDate(asOfDate)) : this.reportDate);
+
         return {
           id: scheme.id,
           displayName: scheme.displayName,
@@ -1009,13 +1817,32 @@ class AmfiService {
           schemeOption: scheme.schemeOption || determineSchemeOption(scheme.displayName),
           subCategoryId: scheme.subCategoryId,
           amcName: scheme.amcName,
-          benchmark: scheme.benchmark,
-          riskometerScheme: scheme.riskometerScheme,
-          dailyAUMRaw: scheme.dailyAUMRaw,
-          dailyAUMFormatted: scheme.dailyAUMFormatted,
+          benchmark,
+          riskometerScheme,
+          dailyAUMRaw,
+          dailyAUMFormatted,
+          navRegular,
+          navDirect,
           regularSchemeCode: scheme.regularSchemeCode,
           directSchemeCode: scheme.directSchemeCode,
-          ...computed
+          ...computed,
+          currentNav,
+          navDate,
+          return1YearRegular: histMatch ? histMatch.return1YearRegular : null,
+          return1YearDirect: histMatch ? histMatch.return1YearDirect : null,
+          return3YearRegular: histMatch ? histMatch.return3YearRegular : null,
+          return3YearDirect: histMatch ? histMatch.return3YearDirect : null,
+          return5YearRegular: histMatch ? histMatch.return5YearRegular : null,
+          return5YearDirect: histMatch ? histMatch.return5YearDirect : null,
+          return10YearRegular: histMatch ? histMatch.return10YearRegular : null,
+          return10YearDirect: histMatch ? histMatch.return10YearDirect : null,
+          return1YearBenchmark: histMatch ? histMatch.benchmarkReturn1Year : null,
+          return3YearBenchmark: histMatch ? histMatch.benchmarkReturn3Year : null,
+          return5YearBenchmark: histMatch ? histMatch.benchmarkReturn5Year : null,
+          return10YearBenchmark: histMatch ? histMatch.benchmarkReturn10Year : null,
+          riskometerBenchmark: (histMatch && histMatch.riskometerBenchmark && histMatch.riskometerBenchmark !== 'N/A') ? histMatch.riskometerBenchmark : scheme.riskometerBenchmark,
+          preNavRegular: histMatch ? histMatch.preNavRegular : null,
+          preNavDirect: histMatch ? histMatch.preNavDirect : null
         };
       },
       12
@@ -1028,7 +1855,7 @@ class AmfiService {
       limit: limitNum,
       totalPages,
       customDaysList: daysList,
-      reportDate: this.reportDate,
+      reportDate: histAumRes?.effectiveDate || this.reportDate,
       lastUpdated: this.lastUpdated
     };
   }
@@ -1050,11 +1877,38 @@ class AmfiService {
       .map(id => this.schemeMap.get(id))
       .filter(Boolean);
 
+    // Resolve historical AUM if asOfDate is specified
+    const histAumRes = await this.resolveHistoricalAumForSchemes(asOfDate, matchedSchemes);
+    const histAumMap = histAumRes?.map;
+
     // Compute returns for selected funds with bounded concurrency
     const fundsWithReturns = await pMap(
       matchedSchemes,
       async (scheme) => {
-        const computed = await this.computeReturnsForScheme(scheme, plan, daysList, startDate, endDate, asOfDate);
+        const histMatch = histAumMap ? histAumMap.get(scheme.id) : null;
+        const m = histMatch || scheme.amfiMatch;
+        const computed = await this.computeReturnsForScheme(scheme, plan, daysList, startDate, endDate, asOfDate, histMatch);
+        const dailyAUMRaw = (m && m.dailyAUM !== null)
+          ? m.dailyAUM
+          : (scheme.dailyAUMRaw !== null ? scheme.dailyAUMRaw : null);
+        const dailyAUMFormatted = (m && m.dailyAUM !== null)
+          ? this.formatAUM(m.dailyAUM)
+          : (scheme.dailyAUMFormatted && scheme.dailyAUMFormatted !== 'N/A' ? scheme.dailyAUMFormatted : (dailyAUMRaw ? this.formatAUM(dailyAUMRaw) : 'N/A'));
+        const benchmark = (m && m.benchmark && m.benchmark !== 'N/A') ? m.benchmark : scheme.benchmark;
+        const riskometerScheme = (m && m.riskometerScheme && m.riskometerScheme !== 'N/A') ? m.riskometerScheme : scheme.riskometerScheme;
+
+        const isDir = plan.toLowerCase() === 'direct';
+
+        const navRegular = (histMatch && histMatch.navRegular)
+          ? histMatch.navRegular
+          : (computed.regNav || (isDir ? null : computed.currentNav) || scheme.navRegular || null);
+        const navDirect = (histMatch && histMatch.navDirect)
+          ? histMatch.navDirect
+          : (computed.dirNav || (isDir ? computed.currentNav : null) || scheme.navDirect || null);
+        const currentNav = computed.currentNav || (histMatch && (isDir ? histMatch.navDirect : histMatch.navRegular))
+          || (isDir ? (navDirect || navRegular) : (navRegular || navDirect));
+        const navDate = computed.navDate || (histMatch && histMatch.navDate) || (histAumRes?.effectiveDate) || (asOfDate ? formatAmfiDate(parseNavDate(asOfDate)) : this.reportDate);
+
         return {
           id: scheme.id,
           displayName: scheme.displayName,
@@ -1062,13 +1916,32 @@ class AmfiService {
           category: scheme.category,
           subCategoryId: scheme.subCategoryId,
           amcName: scheme.amcName,
-          benchmark: scheme.benchmark,
-          riskometerScheme: scheme.riskometerScheme,
-          dailyAUMRaw: scheme.dailyAUMRaw,
-          dailyAUMFormatted: scheme.dailyAUMFormatted,
+          benchmark,
+          riskometerScheme,
+          dailyAUMRaw,
+          dailyAUMFormatted,
+          navRegular,
+          navDirect,
           regularSchemeCode: scheme.regularSchemeCode,
           directSchemeCode: scheme.directSchemeCode,
-          ...computed
+          ...computed,
+          currentNav,
+          navDate,
+          return1YearRegular: histMatch ? histMatch.return1YearRegular : null,
+          return1YearDirect: histMatch ? histMatch.return1YearDirect : null,
+          return3YearRegular: histMatch ? histMatch.return3YearRegular : null,
+          return3YearDirect: histMatch ? histMatch.return3YearDirect : null,
+          return5YearRegular: histMatch ? histMatch.return5YearRegular : null,
+          return5YearDirect: histMatch ? histMatch.return5YearDirect : null,
+          return10YearRegular: histMatch ? histMatch.return10YearRegular : null,
+          return10YearDirect: histMatch ? histMatch.return10YearDirect : null,
+          return1YearBenchmark: histMatch ? histMatch.benchmarkReturn1Year : null,
+          return3YearBenchmark: histMatch ? histMatch.benchmarkReturn3Year : null,
+          return5YearBenchmark: histMatch ? histMatch.benchmarkReturn5Year : null,
+          return10YearBenchmark: histMatch ? histMatch.benchmarkReturn10Year : null,
+          riskometerBenchmark: (histMatch && histMatch.riskometerBenchmark && histMatch.riskometerBenchmark !== 'N/A') ? histMatch.riskometerBenchmark : scheme.riskometerBenchmark,
+          preNavRegular: histMatch ? histMatch.preNavRegular : null,
+          preNavDirect: histMatch ? histMatch.preNavDirect : null
         };
       },
       12
@@ -1086,10 +1959,14 @@ class AmfiService {
       funds: fundsWithReturns,
       total: fundsWithReturns.length,
       customDaysList: daysList,
-      reportDate: this.reportDate,
+      reportDate: histAumRes?.effectiveDate || this.reportDate,
       lastUpdated: this.lastUpdated
     };
   }
 }
 
-module.exports = new AmfiService();
+const amfiServiceInstance = new AmfiService();
+amfiServiceInstance.formatAmfiDate = formatAmfiDate;
+amfiServiceInstance.parseNavDate = parseNavDate;
+
+module.exports = amfiServiceInstance;

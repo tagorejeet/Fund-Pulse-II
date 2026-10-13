@@ -496,11 +496,11 @@ export const SipCustomFundList = ({
                                 />
                               </td>
 
-                              <td className="p-3">
-                                <div className="font-bold text-white text-xs group-hover:text-brand-300 transition-colors">
+                              <td className="p-3 select-text cursor-text">
+                                <div className="font-bold text-white text-xs group-hover:text-brand-300 transition-colors select-text">
                                   {fund.displayName}
                                 </div>
-                                <div className="text-[10px] text-slate-400 mt-0.5">{fund.amcName}</div>
+                                <div className="text-[10px] text-slate-400 mt-0.5 select-text">{fund.amcName}</div>
                               </td>
 
                               <td className="p-3 font-mono text-slate-200">

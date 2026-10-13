@@ -32,9 +32,9 @@ const MASTER_CATEGORIES = [
   { id: 'flexi-cap', name: 'Flexi Cap', subCategoryId: 3 },
   { id: 'sectoral-thematic', name: 'Sectoral / Thematic', subCategoryId: 12 },
   { id: 'elss', name: 'ELSS', subCategoryId: 8 },
-  { id: 'contra', name: 'Contra', subCategoryId: 7 },
-  { id: 'dividend-yield', name: 'Dividend Yield', subCategoryId: 9 },
-  { id: 'focused', name: 'Focused', subCategoryId: 10 },
+  { id: 'contra', name: 'Contra', subCategoryId: 9 },
+  { id: 'dividend-yield', name: 'Dividend Yield', subCategoryId: 10 },
+  { id: 'focused', name: 'Focused', subCategoryId: 11 },
   { id: 'index-funds', name: 'Index Funds', subCategoryId: 13 },
   { id: 'hybrid', name: 'Hybrid', subCategoryId: 14 },
   { id: 'debt-liquid', name: 'Debt / Liquid', subCategoryId: 15 }

@@ -202,8 +202,14 @@ async function refreshAllNseIndices(force = false) {
   for (let i = 0; i < NSE_INDICES.length; i += chunkSize) {
     const chunk = NSE_INDICES.slice(i, i + chunkSize);
     await Promise.all(chunk.map(async (item) => {
-      if (!force && memoryCache.data[item.id] && memoryCache.data[item.id].length > 0) {
-        return;
+      const existing = memoryCache.data[item.id];
+      if (!force && existing && existing.length > 0) {
+        const latestRec = existing[0];
+        const latestTime = latestRec.date ? new Date(latestRec.date).getTime() : 0;
+        const daysDiff = (today.getTime() - latestTime) / (1000 * 60 * 60 * 24);
+        if (daysDiff <= 3.5) {
+          return;
+        }
       }
       try {
         const queryName = item.apiName || item.officialName || item.id;
@@ -308,8 +314,10 @@ function getCalendarYearTargetDate(baseDate, yearsBack) {
  * Get processed NSE indices data for a given valuation/asOf date and optional custom days
  */
 async function getNSEIndexData({ asOfDate = null, forceRefresh = false, days = null, customDays = null, startDate = null, endDate = null } = {}) {
-  // Ensure data is primed
-  if (Object.keys(memoryCache.data).length === 0 || forceRefresh) {
+  // Ensure data is primed and fresh
+  const now = Date.now();
+  const isCacheStale = !memoryCache.lastUpdated || (now - new Date(memoryCache.lastUpdated).getTime() >= CACHE_TTL_MS);
+  if (Object.keys(memoryCache.data).length === 0 || forceRefresh || isCacheStale) {
     await refreshAllNseIndices(forceRefresh);
   }
 

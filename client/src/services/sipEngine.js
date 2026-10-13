@@ -124,8 +124,11 @@ export function calculateXIRR(cashFlows, guess = 0.1) {
 export function findApplicableNav(navRecords, targetDate, maxAllowedDate) {
   if (!navRecords || navRecords.length === 0) return null;
 
-  const targetTime = targetDate.getTime();
-  const maxTime = maxAllowedDate ? maxAllowedDate.getTime() : Infinity;
+  const targetDateNormalized = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+  const targetTime = targetDateNormalized.getTime();
+  const maxTime = maxAllowedDate 
+    ? new Date(maxAllowedDate.getFullYear(), maxAllowedDate.getMonth(), maxAllowedDate.getDate(), 23, 59, 59, 999).getTime() 
+    : Infinity;
 
   // 1. Exact match on targetDate
   for (let i = 0; i < navRecords.length; i++) {
@@ -145,8 +148,35 @@ export function findApplicableNav(navRecords, targetDate, maxAllowedDate) {
 
   const maxDiffMs = 15 * 24 * 3600 * 1000; // max 15 days holiday/weekend shift
 
-  // 2. Retrace back to previous working date (latest business day on or before targetDate, never forward)
-  // navRecords is sorted descending (latest first), so the first record with t <= targetTime is the closest preceding business day
+  // 2. Advance to next upcoming working day (closest business day on or after targetDate)
+  // navRecords is sorted descending (latest first). Find record with t >= targetTime with smallest difference
+  let nextWorkingRec = null;
+  let minForwardDiff = Infinity;
+
+  for (let i = 0; i < navRecords.length; i++) {
+    const rec = navRecords[i];
+    const t = rec.dateObj.getTime();
+    if (t >= targetTime && t <= maxTime) {
+      const diff = t - targetTime;
+      if (diff < minForwardDiff && diff <= maxDiffMs) {
+        minForwardDiff = diff;
+        nextWorkingRec = rec;
+      }
+    }
+  }
+
+  if (nextWorkingRec) {
+    return {
+      record: nextWorkingRec,
+      nav: Number(nextWorkingRec.nav),
+      navDate: nextWorkingRec.date,
+      navDateObj: nextWorkingRec.dateObj,
+      isExact: false,
+      reason: 'Next upcoming business day'
+    };
+  }
+
+  // 3. Fallback: If no upcoming business day on or before maxAllowedDate, retrace to previous working date
   for (let i = 0; i < navRecords.length; i++) {
     const rec = navRecords[i];
     const t = rec.dateObj.getTime();
@@ -158,14 +188,14 @@ export function findApplicableNav(navRecords, targetDate, maxAllowedDate) {
           navDate: rec.date,
           navDateObj: rec.dateObj,
           isExact: false,
-          reason: 'Preceding business day'
+          reason: 'Preceding business day fallback'
         };
       }
       break;
     }
   }
 
-  // 3. Fallback: if targetDate is before earliest recorded NAV in history by just a few days,
+  // 4. Fallback: if targetDate is before earliest recorded NAV in history by just a few days,
   // pick the earliest available record within maxDiffMs
   const earliest = navRecords[navRecords.length - 1];
   if (earliest && earliest.dateObj.getTime() >= targetTime && (earliest.dateObj.getTime() - targetTime <= maxDiffMs)) {

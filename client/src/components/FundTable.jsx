@@ -502,14 +502,18 @@ const FundTable = ({
 
                       {/* Fund Name */}
                       <td 
-                        className="p-3.5 cursor-pointer"
-                        onClick={() => onSelectFund && onSelectFund(fund)}
+                        className="p-3.5 cursor-pointer select-text"
+                        onClick={() => {
+                          const sel = window.getSelection();
+                          if (sel && sel.toString().trim().length > 0) return;
+                          if (onSelectFund) onSelectFund(fund);
+                        }}
                         title="Click to view fund details"
                       >
-                        <div className="font-bold text-white group-hover:text-brand-300 transition-colors">
+                        <div className="font-bold text-white group-hover:text-brand-300 transition-colors select-text">
                           {fund.displayName}
                         </div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">
+                        <div className="text-[10px] text-slate-400 mt-0.5 select-text">
                           {fund.amcName}
                         </div>
                       </td>

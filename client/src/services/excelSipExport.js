@@ -289,6 +289,11 @@ export const exportSipToExcel = ({
     XLSX.utils.book_append_sheet(workbook, detailSheet, tabName);
   });
 
-  const fileName = `FundPulse_SIP_Returns_${plan}_${todayStr}.xlsx`;
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, '0');
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yyyy = now.getFullYear();
+  const dateStr = `${dd}-${mm}-${yyyy}`;
+  const fileName = `Snazzy SIP Returns ${dateStr}.xlsx`;
   XLSX.writeFile(workbook, fileName);
 };

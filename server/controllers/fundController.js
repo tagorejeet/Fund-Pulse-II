@@ -110,7 +110,16 @@ const getFundById = async (req, res) => {
       });
     }
 
-    const computed = await amfiService.computeReturnsForScheme(scheme, plan, days || customDays, startDate, endDate, resolvedAsOfDate);
+    const histAumRes = await amfiService.resolveHistoricalAumForSchemes(resolvedAsOfDate, [scheme]);
+    const histMatch = histAumRes?.map ? histAumRes.map.get(scheme.id) : null;
+    const m = histMatch || scheme.amfiMatch;
+    const computed = await amfiService.computeReturnsForScheme(scheme, plan, days || customDays, startDate, endDate, resolvedAsOfDate, histMatch);
+    const dailyAUMRaw = (m && m.dailyAUM !== null) ? m.dailyAUM : scheme.dailyAUMRaw;
+    const dailyAUMFormatted = (m && m.dailyAUM !== null) ? amfiService.formatAUM(m.dailyAUM) : scheme.dailyAUMFormatted;
+    const benchmark = (m && m.benchmark && m.benchmark !== 'N/A') ? m.benchmark : scheme.benchmark;
+    const riskometerScheme = (m && m.riskometerScheme && m.riskometerScheme !== 'N/A') ? m.riskometerScheme : scheme.riskometerScheme;
+
+    const isDir = plan.toLowerCase() === 'direct';
 
     res.json({
       success: true,
@@ -122,13 +131,15 @@ const getFundById = async (req, res) => {
           category: scheme.category,
           subCategoryId: scheme.subCategoryId,
           amcName: scheme.amcName,
-          benchmark: scheme.benchmark,
-          riskometerScheme: scheme.riskometerScheme,
-          dailyAUMRaw: scheme.dailyAUMRaw,
-          dailyAUMFormatted: scheme.dailyAUMFormatted,
+          benchmark,
+          riskometerScheme,
+          dailyAUMRaw,
+          dailyAUMFormatted,
+          navRegular: (histMatch && histMatch.navRegular) ? histMatch.navRegular : (isDir ? null : computed.currentNav),
+          navDirect: (histMatch && histMatch.navDirect) ? histMatch.navDirect : (isDir ? computed.currentNav : null),
           plan: computed.planUsed,
-          currentNav: computed.currentNav,
-          navDate: computed.navDate,
+          currentNav: computed.currentNav || (histMatch && (isDir ? histMatch.navDirect : histMatch.navRegular)),
+          navDate: computed.navDate || (histAumRes?.effectiveDate) || (resolvedAsOfDate ? amfiService.formatAmfiDate(amfiService.parseNavDate(resolvedAsOfDate)) : computed.navDate),
           return1Yr: computed.return1Yr,
           return2Yr: computed.return2Yr,
           return3Yr: computed.return3Yr,
@@ -147,9 +158,24 @@ const getFundById = async (req, res) => {
           return60D: computed.return60D,
           return180D: computed.return180D,
           returnCustomD: computed.returnCustomD,
-          customDays: computed.customDays
+          customDays: computed.customDays,
+          return1YearRegular: histMatch ? histMatch.return1YearRegular : null,
+          return1YearDirect: histMatch ? histMatch.return1YearDirect : null,
+          return3YearRegular: histMatch ? histMatch.return3YearRegular : null,
+          return3YearDirect: histMatch ? histMatch.return3YearDirect : null,
+          return5YearRegular: histMatch ? histMatch.return5YearRegular : null,
+          return5YearDirect: histMatch ? histMatch.return5YearDirect : null,
+          return10YearRegular: histMatch ? histMatch.return10YearRegular : null,
+          return10YearDirect: histMatch ? histMatch.return10YearDirect : null,
+          return1YearBenchmark: histMatch ? histMatch.benchmarkReturn1Year : null,
+          return3YearBenchmark: histMatch ? histMatch.benchmarkReturn3Year : null,
+          return5YearBenchmark: histMatch ? histMatch.benchmarkReturn5Year : null,
+          return10YearBenchmark: histMatch ? histMatch.benchmarkReturn10Year : null,
+          riskometerBenchmark: (histMatch && histMatch.riskometerBenchmark && histMatch.riskometerBenchmark !== 'N/A') ? histMatch.riskometerBenchmark : scheme.riskometerBenchmark,
+          preNavRegular: histMatch ? histMatch.preNavRegular : null,
+          preNavDirect: histMatch ? histMatch.preNavDirect : null
         },
-        reportDate: amfiService.reportDate,
+        reportDate: histAumRes?.effectiveDate || (resolvedAsOfDate ? amfiService.formatAmfiDate(amfiService.parseNavDate(resolvedAsOfDate)) : amfiService.reportDate),
         lastUpdated: amfiService.lastUpdated
       }
     });

@@ -867,6 +867,29 @@ export function buildCombinedSummaryWorksheet(workbook, funds = [], indices = []
   return ws;
 }
 
+const getFormattedDateForFilename = (calcDate) => {
+  let d = new Date();
+  if (calcDate) {
+    const parts = String(calcDate).trim().split('-');
+    if (parts.length === 3) {
+      if (parts[0].length === 4) {
+        // YYYY-MM-DD
+        d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      } else {
+        // DD-MM-YYYY
+        d = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+      }
+    } else {
+      const parsed = new Date(calcDate);
+      if (!isNaN(parsed.getTime())) d = parsed;
+    }
+  }
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
+};
+
 /**
  * EXPORT 1: Download Custom List (Exact Suggestion Sheet layout + optional NSE sheet)
  */
@@ -881,7 +904,6 @@ export const exportCustomListToExcel = async ({
   calculationDate = null
 }) => {
   const workbook = new ExcelJS.Workbook();
-  const todayStr = calculationDate || new Date().toISOString().split('T')[0];
 
   // Sheet 1: Suggestion List (Reproduces Our Suggestion Sheet.xlsx exactly)
   if (funds && funds.length > 0) {
@@ -902,7 +924,8 @@ export const exportCustomListToExcel = async ({
 
   if (workbook.worksheets.length === 0) return;
 
-  const fileName = `FundPulse_Suggestion_Sheet_${plan}_${todayStr}.xlsx`;
+  const dateStr = getFormattedDateForFilename(calculationDate);
+  const fileName = `Snazzy Suggestion sheet ${dateStr}.xlsx`;
   await downloadWorkbook(workbook, fileName);
 };
 
@@ -916,12 +939,12 @@ export const exportNseListToExcel = async (
   customDaysList = [33, 50, 67]
 ) => {
   if (!indices || indices.length === 0) return;
-  const todayStr = calculationDate || new Date().toISOString().split('T')[0];
 
   const workbook = new ExcelJS.Workbook();
   buildNseWorksheet(workbook, indices, calculationDate, mode, customDaysList);
 
-  const fileName = `FundPulse_NSE_Indices_${todayStr}.xlsx`;
+  const dateStr = getFormattedDateForFilename(calculationDate);
+  const fileName = `Snazzy NSE Indices ${dateStr}.xlsx`;
   await downloadWorkbook(workbook, fileName);
 };
 
@@ -939,7 +962,6 @@ export const exportEverythingToExcel = async ({
   calculationDate = null
 }) => {
   const workbook = new ExcelJS.Workbook();
-  const todayStr = calculationDate || new Date().toISOString().split('T')[0];
 
   // Sheet 1: Suggestion List
   buildSuggestionSheetWorksheet(workbook, {
@@ -959,6 +981,7 @@ export const exportEverythingToExcel = async ({
   // Sheet 3: Combined Summary
   buildCombinedSummaryWorksheet(workbook, funds, nseIndices, reportDate, calculationDate);
 
-  const fileName = `FundPulse_Complete_Portfolio_${plan}_${todayStr}.xlsx`;
+  const dateStr = getFormattedDateForFilename(calculationDate);
+  const fileName = `Snazzy Suggestion sheet ${dateStr}.xlsx`;
   await downloadWorkbook(workbook, fileName);
 };

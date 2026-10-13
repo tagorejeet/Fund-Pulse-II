@@ -526,23 +526,37 @@ export function App() {
     loadFunds(activeCategory, debouncedSearchQuery, selectedPlan, page, customDaysList, startDate, endDate, calculationDate, selectedOption);
   }, [activeCategory, debouncedSearchQuery, selectedPlan, selectedOption, page, customDaysList, startDate, endDate, calculationDate, loadFunds]);
 
-  // Always keep custom funds loaded whenever selectedFundIds changes or on mount
+  // Load custom funds when custom tab is active, or gently preload after initial mount
   useEffect(() => {
     if (selectedFundIds && selectedFundIds.size > 0) {
-      loadCustomFunds(selectedFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate);
+      if (activeTab === 'custom') {
+        loadCustomFunds(selectedFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate);
+      } else {
+        const timer = setTimeout(() => {
+          loadCustomFunds(selectedFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate);
+        }, 1200);
+        return () => clearTimeout(timer);
+      }
     } else {
       setCustomFunds([]);
     }
-  }, [selectedFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate, loadCustomFunds]);
+  }, [selectedFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate, loadCustomFunds, activeTab]);
 
-  // Always keep suggestion sheet funds loaded
+  // Load suggestion sheet funds when suggestion tab is active, or gently preload after initial mount
   useEffect(() => {
     if (suggestionFundIds && suggestionFundIds.size > 0) {
-      loadSuggestionFunds(suggestionFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate);
+      if (activeTab === 'suggestion') {
+        loadSuggestionFunds(suggestionFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate);
+      } else {
+        const timer = setTimeout(() => {
+          loadSuggestionFunds(suggestionFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate);
+        }, 1800);
+        return () => clearTimeout(timer);
+      }
     } else {
       setSuggestionFunds([]);
     }
-  }, [suggestionFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate, loadSuggestionFunds]);
+  }, [suggestionFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate, loadSuggestionFunds, activeTab]);
 
   const handleApplyCustomDays = ({ customDaysList: newDaysList, startDate: newStart, endDate: newEnd }) => {
     const validList = (newDaysList && newDaysList.length > 0) ? newDaysList : [33, 50, 67];
@@ -616,6 +630,10 @@ export function App() {
     setSelectedFundIds(new Set());
     setSelectedNseIndexIds(new Set());
     setCustomFunds([]);
+    try {
+      localStorage.removeItem('fundpulse_deselected_custom');
+      localStorage.removeItem('fundpulse_deselected_nse_custom');
+    } catch (e) {}
   };
 
   // Suggestion Sheet Checkbox Handlers (Orange Checkbox)
@@ -626,6 +644,16 @@ export function App() {
         next.delete(id);
       } else {
         next.add(id);
+        // If fund is being explicitly added, ensure it is not marked as deselected
+        try {
+          const saved = localStorage.getItem('fundpulse_deselected_suggestion');
+          if (saved) {
+            const arr = JSON.parse(saved);
+            if (Array.isArray(arr) && arr.includes(id)) {
+              localStorage.setItem('fundpulse_deselected_suggestion', JSON.stringify(arr.filter(x => x !== id)));
+            }
+          }
+        } catch (e) {}
       }
       return next;
     });
@@ -641,6 +669,16 @@ export function App() {
         pageFunds.forEach(f => next.delete(f.id));
       } else {
         pageFunds.forEach(f => next.add(f.id));
+        try {
+          const saved = localStorage.getItem('fundpulse_deselected_suggestion');
+          if (saved) {
+            const arr = JSON.parse(saved);
+            if (Array.isArray(arr)) {
+              const toAdd = new Set(pageFunds.map(f => f.id));
+              localStorage.setItem('fundpulse_deselected_suggestion', JSON.stringify(arr.filter(x => !toAdd.has(x))));
+            }
+          }
+        } catch (e) {}
       }
       return next;
     });
@@ -657,6 +695,10 @@ export function App() {
   const handleClearSuggestionAll = () => {
     setSuggestionFundIds(new Set());
     setSuggestionFunds([]);
+    try {
+      localStorage.removeItem('fundpulse_deselected_suggestion');
+      localStorage.removeItem('fundpulse_deselected_nse_suggestion');
+    } catch (e) {}
   };
 
   const handleManualRefresh = async () => {

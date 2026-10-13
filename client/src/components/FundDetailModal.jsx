@@ -6,8 +6,9 @@ const FundDetailModal = ({ fund, onClose }) => {
   if (!fund) return null;
 
   const formatPct = (val) => {
-    if (val === null || val === undefined || isNaN(val)) return 'N/A';
+    if (val === null || val === undefined || val === '' || isNaN(val)) return <span className="text-slate-500 font-sans">N/A</span>;
     const num = Number(val);
+    if (!isFinite(num)) return <span className="text-slate-500 font-sans">N/A</span>;
     const formatted = num.toFixed(2);
     const isPositive = num > 0;
     return (
@@ -18,13 +19,15 @@ const FundDetailModal = ({ fund, onClose }) => {
   };
 
   const formatNav = (val) => {
-    if (val === null || val === undefined || isNaN(val)) return 'N/A';
-    return `₹${Number(val).toFixed(2)}`;
+    if (val === null || val === undefined || val === '' || isNaN(val)) return 'N/A';
+    const num = Number(val);
+    if (!isFinite(num)) return 'N/A';
+    return `₹${num.toFixed(2)}`;
   };
 
   const getRiskometerColor = (risk) => {
     if (!risk || risk === 'N/A') return 'bg-slate-800 text-slate-400 border-slate-700';
-    const lower = risk.toLowerCase();
+    const lower = String(risk).toLowerCase();
     if (lower.includes('very high')) return 'bg-rose-500/10 text-rose-400 border-rose-500/30';
     if (lower.includes('high')) return 'bg-orange-500/10 text-orange-400 border-orange-500/30';
     if (lower.includes('moderate')) return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
@@ -76,7 +79,9 @@ const FundDetailModal = ({ fund, onClose }) => {
               <p className="text-xs text-slate-400 font-medium flex items-center gap-1">
                 <DollarSign className="h-3.5 w-3.5 text-brand-400" /> NAV (Regular)
               </p>
-              <p className="text-lg font-bold text-white mt-1 font-mono">{formatNav(fund.navRegular)}</p>
+              <p className="text-lg font-bold text-white mt-1 font-mono">
+                {formatNav(fund.navRegular ?? fund.regNav ?? (fund.planUsed !== 'Direct' ? fund.currentNav : null))}
+              </p>
               <p className="text-[10px] text-slate-500 mt-0.5">Prev: {formatNav(fund.preNavRegular)}</p>
             </div>
 
@@ -84,7 +89,9 @@ const FundDetailModal = ({ fund, onClose }) => {
               <p className="text-xs text-slate-400 font-medium flex items-center gap-1">
                 <DollarSign className="h-3.5 w-3.5 text-emerald-400" /> NAV (Direct)
               </p>
-              <p className="text-lg font-bold text-white mt-1 font-mono">{formatNav(fund.navDirect)}</p>
+              <p className="text-lg font-bold text-white mt-1 font-mono">
+                {formatNav(fund.navDirect ?? fund.dirNav ?? (fund.planUsed === 'Direct' ? fund.currentNav : null))}
+              </p>
               <p className="text-[10px] text-slate-500 mt-0.5">Prev: {formatNav(fund.preNavDirect)}</p>
             </div>
 
@@ -92,7 +99,9 @@ const FundDetailModal = ({ fund, onClose }) => {
               <p className="text-xs text-slate-400 font-medium flex items-center gap-1">
                 <BarChart3 className="h-3.5 w-3.5 text-purple-400" /> Total AUM
               </p>
-              <p className="text-lg font-bold text-white mt-1">{fund.dailyAUMFormatted}</p>
+              <p className="text-lg font-bold text-white mt-1">
+                {fund.dailyAUMFormatted || (fund.dailyAUMRaw ? `₹${fund.dailyAUMRaw} Cr` : (fund.aum ? `₹${fund.aum} Cr` : 'N/A'))}
+              </p>
               <p className="text-[10px] text-slate-500 mt-0.5">Daily AUM Snapshot</p>
             </div>
 
@@ -122,10 +131,10 @@ const FundDetailModal = ({ fund, onClose }) => {
               </div>
               <div className="flex items-center gap-2 flex-wrap text-xs">
                 <span className={`px-2.5 py-1 rounded-lg border font-semibold ${getRiskometerColor(fund.riskometerScheme)}`}>
-                  Scheme: {fund.riskometerScheme}
+                  Scheme: {fund.riskometerScheme || 'N/A'}
                 </span>
                 <span className={`px-2.5 py-1 rounded-lg border font-semibold ${getRiskometerColor(fund.riskometerBenchmark)}`}>
-                  Benchmark: {fund.riskometerBenchmark}
+                  Benchmark: {fund.riskometerBenchmark || 'N/A'}
                 </span>
               </div>
             </div>
@@ -152,44 +161,44 @@ const FundDetailModal = ({ fund, onClose }) => {
                 <tbody className="divide-y divide-slate-800/80 font-mono">
                   <tr>
                     <td className="p-3 font-sans font-semibold text-slate-300">1 Year CAGR</td>
-                    <td className="p-3">{formatPct(fund.return1YearRegular)}</td>
-                    <td className="p-3">{formatPct(fund.return1YearDirect)}</td>
-                    <td className="p-3">{formatPct(fund.return1YearBenchmark)}</td>
+                    <td className="p-3">{formatPct(fund.return1YearRegular ?? fund.regReturn1Yr ?? (fund.planUsed !== 'Direct' ? fund.return1Yr : null))}</td>
+                    <td className="p-3">{formatPct(fund.return1YearDirect ?? fund.dirReturn1Yr ?? (fund.planUsed === 'Direct' ? fund.return1Yr : null))}</td>
+                    <td className="p-3">{formatPct(fund.return1YearBenchmark ?? fund.benchmarkReturn1Yr)}</td>
                   </tr>
                   <tr>
                     <td className="p-3 font-sans font-semibold text-slate-300">3 Year CAGR</td>
-                    <td className="p-3">{formatPct(fund.return3YearRegular)}</td>
-                    <td className="p-3">{formatPct(fund.return3YearDirect)}</td>
-                    <td className="p-3">{formatPct(fund.return3YearBenchmark)}</td>
+                    <td className="p-3">{formatPct(fund.return3YearRegular ?? fund.regReturn3Yr ?? (fund.planUsed !== 'Direct' ? fund.return3Yr : null))}</td>
+                    <td className="p-3">{formatPct(fund.return3YearDirect ?? fund.dirReturn3Yr ?? (fund.planUsed === 'Direct' ? fund.return3Yr : null))}</td>
+                    <td className="p-3">{formatPct(fund.return3YearBenchmark ?? fund.benchmarkReturn3Yr)}</td>
                   </tr>
                   <tr>
                     <td className="p-3 font-sans font-semibold text-slate-300">5 Year CAGR</td>
-                    <td className="p-3">{formatPct(fund.return5YearRegular)}</td>
-                    <td className="p-3">{formatPct(fund.return5YearDirect)}</td>
-                    <td className="p-3">{formatPct(fund.return5YearBenchmark)}</td>
+                    <td className="p-3">{formatPct(fund.return5YearRegular ?? fund.regReturn5Yr ?? (fund.planUsed !== 'Direct' ? fund.return5Yr : null))}</td>
+                    <td className="p-3">{formatPct(fund.return5YearDirect ?? fund.dirReturn5Yr ?? (fund.planUsed === 'Direct' ? fund.return5Yr : null))}</td>
+                    <td className="p-3">{formatPct(fund.return5YearBenchmark ?? fund.benchmarkReturn5Yr)}</td>
                   </tr>
                   <tr>
                     <td className="p-3 font-sans font-semibold text-slate-300">10 Year CAGR</td>
-                    <td className="p-3">{formatPct(fund.return10YearRegular)}</td>
-                    <td className="p-3">{formatPct(fund.return10YearDirect)}</td>
-                    <td className="p-3">{formatPct(fund.return10YearBenchmark)}</td>
+                    <td className="p-3">{formatPct(fund.return10YearRegular ?? fund.regReturn10Yr ?? (fund.planUsed !== 'Direct' ? fund.return10Yr : null))}</td>
+                    <td className="p-3">{formatPct(fund.return10YearDirect ?? fund.dirReturn10Yr ?? (fund.planUsed === 'Direct' ? fund.return10Yr : null))}</td>
+                    <td className="p-3">{formatPct(fund.return10YearBenchmark ?? fund.benchmarkReturn10Yr)}</td>
                   </tr>
                   <tr className="bg-slate-900/30">
                     <td className="p-3 font-sans font-semibold text-slate-200">Since Launch</td>
-                    <td className="p-3">{formatPct(fund.returnSinceLaunchRegular)}</td>
-                    <td className="p-3">{formatPct(fund.returnSinceLaunchDirect)}</td>
-                    <td className="p-3">{formatPct(fund.returnSinceLaunchBenchmarkRegular)}</td>
+                    <td className="p-3">{formatPct(fund.returnSinceLaunchRegular ?? fund.regReturnSinceLaunch ?? fund.returnSinceLaunch)}</td>
+                    <td className="p-3">{formatPct(fund.returnSinceLaunchDirect ?? fund.dirReturnSinceLaunch ?? (fund.planUsed === 'Direct' ? fund.returnSinceLaunch : null))}</td>
+                    <td className="p-3">{formatPct(fund.returnSinceLaunchBenchmarkRegular ?? fund.benchmarkReturnSinceLaunch)}</td>
                   </tr>
                   <tr>
                     <td className="p-3 font-sans font-semibold text-slate-400">6 Month Return</td>
-                    <td className="p-3">{formatPct(fund.return6MonthRegular)}</td>
-                    <td className="p-3">{formatPct(fund.return6MonthDirect)}</td>
+                    <td className="p-3">{formatPct(fund.return6MonthRegular ?? fund.dayReturns?.['180'] ?? fund.return_180d)}</td>
+                    <td className="p-3">{formatPct(fund.return6MonthDirect ?? fund.dayReturns?.['180'] ?? fund.return_180d)}</td>
                     <td className="p-3">{formatPct(fund.return6MonthBenchmark)}</td>
                   </tr>
                   <tr>
                     <td className="p-3 font-sans font-semibold text-slate-400">3 Month Return</td>
-                    <td className="p-3">{formatPct(fund.return3MonthRegular)}</td>
-                    <td className="p-3">{formatPct(fund.return3MonthDirect)}</td>
+                    <td className="p-3">{formatPct(fund.return3MonthRegular ?? fund.dayReturns?.['90'] ?? fund.return_90d)}</td>
+                    <td className="p-3">{formatPct(fund.return3MonthDirect ?? fund.dayReturns?.['90'] ?? fund.return_90d)}</td>
                     <td className="p-3">{formatPct(fund.return3MonthBenchmark)}</td>
                   </tr>
                 </tbody>
