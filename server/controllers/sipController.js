@@ -193,7 +193,7 @@ const calculateSip = async (req, res) => {
                 };
               }
 
-              const rawNavList = await amfiService.getNavHistory(schemeCode);
+              const rawNavList = await amfiService.getNavHistory(schemeCode, null, { requireContinuous: true });
 
               if (!rawNavList || rawNavList.length === 0) {
                 return {
@@ -208,7 +208,7 @@ const calculateSip = async (req, res) => {
                 };
               }
 
-              const fundSipResult = sipEngine.calculateFullFundSip({
+              let fundSipResult = sipEngine.calculateFullFundSip({
                 fund: scheme,
                 rawNavList,
                 monthlySipAmount: numericSip,
@@ -216,6 +216,27 @@ const calculateSip = async (req, res) => {
                 preferredSipDay: numericSipDay,
                 plan: isDir ? 'Direct' : 'Regular'
               });
+
+              // Safeguard: Check if any period failed due to missing installment dates
+              const hasMissingInstallments = [1, 2, 3, 5, 10].some(yr => {
+                const p = fundSipResult.periods?.[`${yr}Y`];
+                return p && !p.hasSufficientData && p.error && p.error.includes('Could not retrieve NAV for scheduled date');
+              });
+
+              if (hasMissingInstallments) {
+                logger.info(`Missing installment dates detected in SIP for scheme ${schemeCode} (${scheme.displayName}). Forcing direct MFAPI complete history ingestion...`);
+                const fullNavList = await amfiService.fetchMfapiNavHistory(schemeCode);
+                if (fullNavList && fullNavList.length > (rawNavList?.length || 0)) {
+                  fundSipResult = sipEngine.calculateFullFundSip({
+                    fund: scheme,
+                    rawNavList: fullNavList,
+                    monthlySipAmount: numericSip,
+                    calculationDate: resolvedCalcDate,
+                    preferredSipDay: numericSipDay,
+                    plan: isDir ? 'Direct' : 'Regular'
+                  });
+                }
+              }
 
               if (isBoth) {
                 fundSipResult.fundId = `${scheme.id}-${isDir ? 'dir' : 'reg'}`;
@@ -310,7 +331,7 @@ const getNavHistoryForFund = async (req, res) => {
       });
     }
 
-    const navList = await amfiService.getNavHistory(schemeCode);
+    const navList = await amfiService.getNavHistory(schemeCode, null, { requireContinuous: true });
 
     res.json({
       success: true,

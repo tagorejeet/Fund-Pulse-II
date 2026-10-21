@@ -18,3 +18,6 @@ npm-debug.log*
 # System files
 .DS_Store
 Thumbs.db
+
+# Large runtime cache files (>100MB GitHub limit)
+server/cache/nav_history_cache.json

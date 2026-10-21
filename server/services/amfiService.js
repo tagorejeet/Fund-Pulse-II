@@ -5,7 +5,7 @@
  * 1. Complete Indian Mutual Fund scheme discovery (all categories and AMCs)
  * 2. Official AMFI Live AUM fetching & matching (sources daily AUM directly from AMFI)
  * 3. Regular / Direct plan pairing by scheme code
- * 4. Independent formula return calculation:
+ * 4. User-specified Quarterly Compounded Annualized Return formula calculation:
  *    Annualized Return = 4 * ((VT / V0)^(1 / (4 * T)) - 1) * 100
  *    where T = 1, 2, 3, 5, 10 years, V0 = historical NAV, VT = current NAV
  * 5. High-performance server-side caching of NAV time series
@@ -202,7 +202,8 @@ function determineSchemeOption(name) {
   return 'other';
 }
 
-// User-specified formula: Annualized Return = 4 * ((VT / V0)^(1 / (4 * T)) - 1) * 100
+// User-specified Quarterly Compounded Annualized Return formula:
+// Annualized Return = 4 * ((VT / V0)^(1 / (4 * T)) - 1) * 100
 function calculateFormulaReturn(V0, VT, T) {
   if (!V0 || !VT || V0 <= 0 || VT <= 0 || !T || T <= 0) return null;
   const ratio = VT / V0;
@@ -370,20 +371,28 @@ class AmfiService {
     if (this._saveCacheTimer) return;
     this._saveCacheTimer = setTimeout(() => {
       this._saveCacheTimer = null;
-      try {
-        if (!fs.existsSync(CACHE_DIR)) {
-          fs.mkdirSync(CACHE_DIR, { recursive: true });
-        }
-        const obj = {};
-        for (const [code, val] of this.navHistoryCache.entries()) {
-          obj[code] = val;
-        }
-        fs.writeFileSync(NAV_CACHE_FILE, JSON.stringify(obj), 'utf-8');
-        logger.info(`Persisted ${this.navHistoryCache.size} schemes NAV history to disk cache.`);
-      } catch (err) {
-        logger.warn(`Failed to persist NAV history to disk: ${err.message}`);
-      }
+      this.saveNavCacheNow();
     }, 4000);
+  }
+
+  saveNavCacheNow() {
+    if (this._saveCacheTimer) {
+      clearTimeout(this._saveCacheTimer);
+      this._saveCacheTimer = null;
+    }
+    try {
+      if (!fs.existsSync(CACHE_DIR)) {
+        fs.mkdirSync(CACHE_DIR, { recursive: true });
+      }
+      const obj = {};
+      for (const [code, val] of this.navHistoryCache.entries()) {
+        obj[code] = val;
+      }
+      fs.writeFileSync(NAV_CACHE_FILE, JSON.stringify(obj), 'utf-8');
+      logger.info(`Persisted ${this.navHistoryCache.size} schemes NAV history to disk cache.`);
+    } catch (err) {
+      logger.warn(`Failed to persist NAV history to disk: ${err.message}`);
+    }
   }
 
   formatAUM(dailyAUM) {
@@ -1425,38 +1434,100 @@ class AmfiService {
   }
 
   /**
+   * Determine if a NAV history series is continuous daily data or merely sparse sampled window data
+   * @param {Array<{date: string, nav: number}>} navList
+   * @returns {boolean}
+   */
+  isNavListContinuous(navList) {
+    if (!Array.isArray(navList) || navList.length < 25) return false;
+
+    const latest = parseNavDate(navList[0]?.date);
+    const earliest = parseNavDate(navList[navList.length - 1]?.date);
+    if (!latest || !earliest || isNaN(latest.getTime()) || isNaN(earliest.getTime())) return false;
+
+    const spanDays = (latest.getTime() - earliest.getTime()) / (1000 * 3600 * 24);
+    const spanYears = spanDays / 365.25;
+
+    // If span is more than 1.5 years and we have fewer than 100 records per year, it is sparse window data
+    if (spanYears > 1.5 && navList.length < (spanYears * 100)) {
+      return false;
+    }
+
+    // Check for large gaps between consecutive records
+    // In normal Indian trading, business day gaps rarely exceed 5-6 calendar days (long weekends).
+    // Gaps > 25 calendar days indicate missing monthly blocks.
+    const checkCount = Math.min(navList.length - 1, 500);
+    for (let i = 0; i < checkCount; i++) {
+      const t1 = parseNavDate(navList[i].date).getTime();
+      const t2 = parseNavDate(navList[i + 1].date).getTime();
+      if (t1 > 0 && t2 > 0) {
+        const gapDays = Math.abs(t1 - t2) / (1000 * 3600 * 24);
+        if (gapDays > 25) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  /**
    * Fetch historical NAV time series for a schemeCode with caching and MFAPI fallback
    * @param {number|string} schemeCode
    * @param {string|Date} minRequiredDate Optional minimum date that must be covered in the time series
+   * @param {Object} options Optional options { requireContinuous: boolean }
    */
-  async getNavHistory(schemeCode, minRequiredDate = null) {
+  async getNavHistory(schemeCode, minRequiredDate = null, { requireContinuous = false } = {}) {
     if (!schemeCode) return [];
     const code = Number(schemeCode);
 
     const now = Date.now();
     const cached = this.navHistoryCache.get(code);
     if (cached && Array.isArray(cached.navList) && cached.navList.length > 0) {
-      if (!minRequiredDate) {
-        return cached.navList;
-      }
-      const reqDate = parseNavDate(minRequiredDate);
-      if (!reqDate || isNaN(reqDate.getTime()) || reqDate.getTime() === 0) {
-        return cached.navList;
-      }
+      const isContinuous = this.isNavListContinuous(cached.navList);
+      if (!requireContinuous || isContinuous) {
+        if (!minRequiredDate) {
+          return cached.navList;
+        }
+        const reqDate = parseNavDate(minRequiredDate);
+        if (!reqDate || isNaN(reqDate.getTime()) || reqDate.getTime() === 0) {
+          return cached.navList;
+        }
 
-      // Check if cached navList actually covers reqDate (i.e. has a record within 7 days of reqDate)
-      const coversReqDate = cached.navList.some(r => {
-        const rDate = parseNavDate(r.date);
-        return Math.abs((rDate.getTime() - reqDate.getTime()) / (1000 * 60 * 60 * 24)) <= 7;
-      });
-      if (coversReqDate) {
-        return cached.navList;
+        // Check if cached navList actually covers reqDate (i.e. has a record within 7 days of reqDate)
+        const coversReqDate = cached.navList.some(r => {
+          const rDate = parseNavDate(r.date);
+          return Math.abs((rDate.getTime() - reqDate.getTime()) / (1000 * 60 * 60 * 24)) <= 7;
+        });
+        if (coversReqDate) {
+          return cached.navList;
+        }
+      } else {
+        logger.info(`Cached NAV history for scheme ${code} is sparse (${cached.navList.length} records with gaps). Continuous history required; triggering full fetch...`);
+      }
+    }
+
+    // If continuous history is required (e.g. for SIP calculation), MFAPI provides complete daily NAVs
+    if (requireContinuous) {
+      try {
+        const mfapiList = await this.fetchMfapiNavHistory(code);
+        if (mfapiList && mfapiList.length > 0) {
+          return mfapiList;
+        }
+      } catch (mfErr) {
+        logger.warn(`MFAPI fetch error for scheme code ${code}: ${mfErr.message}`);
       }
     }
 
     try {
       const list = await this.fetchOfficialAmfiNavHistory(code, minRequiredDate);
       if (list && list.length > 0) {
+        if (requireContinuous && !this.isNavListContinuous(list)) {
+          const mfapiList = await this.fetchMfapiNavHistory(code);
+          if (mfapiList && mfapiList.length > 0) {
+            return mfapiList;
+          }
+        }
         return list;
       }
     } catch (err) {

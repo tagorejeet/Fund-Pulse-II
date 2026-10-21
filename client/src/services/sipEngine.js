@@ -348,12 +348,23 @@ export function calculateSipForPeriod(rawNavList, monthlySipAmount, calculationD
     });
   }
 
-  const finalPortfolioValue = cumulativeUnits * currentNav;
+  // Valuation NAV & Date:
+  // When calculating SIP with a specified SIP day of month (preferredSipDay),
+  // the portfolio valuation at the end of the horizon must be taken as of that final SIP day's applicable NAV,
+  // rather than an arbitrary subsequent date or today's latest recorded NAV.
+  const lastInstallment = installments[installments.length - 1];
+  const finalValuationNav = lastInstallment ? lastInstallment.nav : currentNav;
+  const finalValuationDateObj = (lastInstallment && lastInstallment.allotmentDateIso) ? parseDate(lastInstallment.allotmentDateIso) : valuationDate;
+  const finalValuationDateStr = lastInstallment ? lastInstallment.allotmentDate : formatDate(valuationDate);
+
+  // Final Portfolio Value = Total Units * Final Valuation NAV (on the final SIP day)
+  const finalPortfolioValue = cumulativeUnits * finalValuationNav;
   const absoluteGain = finalPortfolioValue - cumulativeInvested;
   const absoluteReturnPct = (absoluteGain / cumulativeInvested) * 100;
 
+  // The final portfolio value is a positive cash flow on the final valuation date
   cashFlows.push({
-    date: valuationDate,
+    date: finalValuationDateObj,
     amount: finalPortfolioValue
   });
 
@@ -367,9 +378,9 @@ export function calculateSipForPeriod(rawNavList, monthlySipAmount, calculationD
     monthlySipAmount,
     totalInvested: cumulativeInvested,
     totalUnits: cumulativeUnits,
-    currentNav: currentNav,
-    valuationDate: formatDate(valuationDate),
-    valuationDateIso: toIsoDate(valuationDate),
+    currentNav: finalValuationNav,
+    valuationDate: finalValuationDateStr,
+    valuationDateIso: toIsoDate(finalValuationDateObj),
     finalPortfolioValue: Number(finalPortfolioValue.toFixed(2)),
     absoluteGain: Number(absoluteGain.toFixed(2)),
     absoluteReturnPct: Number(absoluteReturnPct.toFixed(2)),

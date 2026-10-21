@@ -334,8 +334,8 @@ export const SipDetailModal = ({
                       {/* Final Row */}
                       <tr className="bg-slate-900/90 font-bold border-t-2 border-slate-700">
                         <td className="p-3 pl-4 text-brand-400 font-sans">VALUATION</td>
-                        <td className="p-3 font-sans text-white">{activePeriodData.valuationDate}</td>
-                        <td className="p-3 font-sans text-slate-400">Calculation Date</td>
+                        <td className="p-3 font-sans text-white">{activePeriodData.lastInstallmentDate || activePeriodData.valuationDate}</td>
+                        <td className="p-3 font-sans text-slate-300">{activePeriodData.valuationDate}</td>
                         <td className="p-3 text-emerald-400 font-semibold">₹{activePeriodData.currentNav != null ? Number(activePeriodData.currentNav).toFixed(4) : '-'}</td>
                         <td className="p-3 text-slate-400">Final Portfolio</td>
                         <td className="p-3 text-slate-500">-</td>
