@@ -606,15 +606,7 @@ export const SipCalculator = ({
               </button>
             </div>
 
-            {customFundIds && customFundIds.size > 0 && (
-              <button
-                onClick={handleImportCustomFunds}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium border border-slate-200 dark:border-slate-700 transition-all active:scale-95"
-              >
-                <Layers className="h-3.5 w-3.5" />
-                <span>Import {customFundIds.size} Custom Funds</span>
-              </button>
-            )}
+            {/* Import Custom Funds button hidden from visible UI for clean minimal layout */}
 
             <button
               onClick={handleExport}

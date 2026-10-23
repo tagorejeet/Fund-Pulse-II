@@ -22,7 +22,7 @@ const SummaryCards = ({ totalFundsCount = 10195 }) => {
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-6">
+    <div className="hidden" aria-hidden="true">
       {cards.map((card, idx) => {
         const IconComponent = card.icon;
         return (

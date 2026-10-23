@@ -10,8 +10,9 @@ const StatusBadge = ({ isCached, lastUpdated, reportDate }) => {
     : '';
 
   return (
-    <div className="flex flex-wrap items-center gap-3 text-xs font-medium">
-      <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border ${
+    <div className="flex flex-wrap items-center gap-2.5 text-xs font-medium">
+      {/* Live AMFI Data badge hidden from visible UI for minimal header aesthetic */}
+      <div className={`hidden inline-flex items-center gap-2 px-3 py-1 rounded-full border ${
         isCached
           ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
           : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
