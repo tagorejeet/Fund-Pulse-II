@@ -193,7 +193,7 @@ async function refreshAllNseIndices(force = false) {
   }
 
   logger.info(`Refreshing ${NSE_INDICES.length} official NSE indices data from niftyindices.com...`);
-  const fromDate = '01-Jan-2014';
+  const fromDate = '01-Jan-1990';
   const today = new Date();
   const toDate = formatToNseApiDate(today);
 
@@ -205,9 +205,13 @@ async function refreshAllNseIndices(force = false) {
       const existing = memoryCache.data[item.id];
       if (!force && existing && existing.length > 0) {
         const latestRec = existing[0];
+        const oldestRec = existing[existing.length - 1];
         const latestTime = latestRec.date ? new Date(latestRec.date).getTime() : 0;
+        const oldestTime = oldestRec.date ? new Date(oldestRec.date).getTime() : 0;
         const daysDiff = (today.getTime() - latestTime) / (1000 * 60 * 60 * 24);
-        if (daysDiff <= 3.5) {
+        const oldestYear = new Date(oldestTime).getFullYear();
+        // Skip only if data is fresh AND includes complete deep historical depth (back to 2006 or earlier)
+        if (daysDiff <= 3.5 && oldestYear <= 2006) {
           return;
         }
       }
@@ -216,7 +220,7 @@ async function refreshAllNseIndices(force = false) {
         const records = await fetchOfficialNseIndexHistory(queryName, fromDate, toDate);
         if (records && records.length > 0) {
           memoryCache.data[item.id] = records;
-          logger.info(`Fetched official ${item.id} records: ${records.length} days`);
+          logger.info(`Fetched official ${item.id} records: ${records.length} days (oldest: ${records[records.length - 1].dateStr})`);
         }
       } catch (err) {
         logger.error(`Error fetching official data for ${item.id}:`, err.message);
@@ -279,13 +283,17 @@ function parseDaysList(customDays) {
 }
 
 // Find latest available trading record ON OR BEFORE targetDate (never future)
-function getLatestTradingRecordOnOrBefore(records, targetDate) {
+function getLatestTradingRecordOnOrBefore(records, targetDate, maxDaysBack = 25) {
   if (!records || records.length === 0 || !targetDate) return null;
   const targetTime = targetDate.getTime();
+  const maxDiffMs = maxDaysBack * 24 * 60 * 60 * 1000;
   // records are sorted newest to oldest
   for (const r of records) {
     const recordTime = (r.date instanceof Date) ? r.date.getTime() : new Date(r.date).getTime();
     if (recordTime <= targetTime) {
+      if (maxDaysBack && (targetTime - recordTime > maxDiffMs)) {
+        return null;
+      }
       return r;
     }
   }
@@ -308,17 +316,17 @@ function getCalendarYearTargetDate(baseDate, yearsBack) {
 }
 
 /**
- * Get processed NSE indices data for a given valuation/asOf date
- */
-/**
  * Get processed NSE indices data for a given valuation/asOf date and optional custom days
  */
 async function getNSEIndexData({ asOfDate = null, forceRefresh = false, days = null, customDays = null, startDate = null, endDate = null } = {}) {
-  // Ensure data is primed and fresh
+  // Ensure data is primed, fresh, and includes deep historical records
   const now = Date.now();
   const isCacheStale = !memoryCache.lastUpdated || (now - new Date(memoryCache.lastUpdated).getTime() >= CACHE_TTL_MS);
-  if (Object.keys(memoryCache.data).length === 0 || forceRefresh || isCacheStale) {
-    await refreshAllNseIndices(forceRefresh);
+  const nifty50Records = memoryCache.data['NIFTY 50'] || [];
+  const needsDeepHistory = nifty50Records.length < 5000;
+
+  if (Object.keys(memoryCache.data).length === 0 || forceRefresh || isCacheStale || needsDeepHistory) {
+    await refreshAllNseIndices(forceRefresh || needsDeepHistory);
   }
 
   // Parse user's selected date (defaulting to today)

@@ -24,9 +24,7 @@ const FundTable = ({
   onToggleSelectAllSuggestionPage,
   onSelectFund,
   searchQuery = '',
-  setSearchQuery,
-  selectedSchemeOption = 'all',
-  onSelectSchemeOption
+  setSearchQuery
 }) => {
   const [sortField, setSortField] = useState('displayName');
   const [sortOrder, setSortOrder] = useState('asc');
@@ -54,9 +52,8 @@ const FundTable = ({
 
   const filteredFunds = useMemo(() => {
     if (!funds) return [];
-    if (!selectedSchemeOption || selectedSchemeOption === 'all') return funds;
-    return funds.filter(f => determineOption(f) === selectedSchemeOption);
-  }, [funds, selectedSchemeOption]);
+    return funds.filter(f => determineOption(f) === 'growth');
+  }, [funds]);
 
   const sortedFunds = useMemo(() => {
     if (!filteredFunds) return [];
@@ -98,12 +95,12 @@ const FundTable = ({
   };
 
   const formatPct = (val) => {
-    if (val === null || val === undefined || isNaN(val)) return <span className="text-slate-500 font-sans">N/A</span>;
+    if (val === null || val === undefined || isNaN(val)) return <span className="text-slate-400 dark:text-slate-500 font-sans">N/A</span>;
     const num = Number(val);
     const formatted = num.toFixed(2);
     const isPositive = num > 0;
     return (
-      <span className={num === 0 ? 'text-slate-300' : isPositive ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
+      <span className={num === 0 ? 'text-slate-600 dark:text-slate-300' : isPositive ? 'text-emerald-700 dark:text-emerald-400 font-semibold' : 'text-rose-600 dark:text-rose-400 font-semibold'}>
         {isPositive ? `+${formatted}%` : `${formatted}%`}
       </span>
     );
@@ -115,13 +112,13 @@ const FundTable = ({
   };
 
   const getRiskometerBadge = (risk) => {
-    if (!risk || risk === 'N/A') return <span className="text-slate-500">N/A</span>;
+    if (!risk || risk === 'N/A') return <span className="text-slate-400 dark:text-slate-500">N/A</span>;
     const lower = risk.toLowerCase();
-    let style = 'bg-slate-800 text-slate-300 border-slate-700';
-    if (lower.includes('very high')) style = 'bg-rose-500/10 text-rose-400 border-rose-500/30';
-    else if (lower.includes('high')) style = 'bg-orange-500/10 text-orange-400 border-orange-500/30';
-    else if (lower.includes('moderate')) style = 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-    else if (lower.includes('low')) style = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+    let style = 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+    if (lower.includes('very high')) style = 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30';
+    else if (lower.includes('high')) style = 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30';
+    else if (lower.includes('moderate')) style = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30';
+    else if (lower.includes('low')) style = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
 
     return (
       <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${style}`}>
@@ -143,72 +140,57 @@ const FundTable = ({
               placeholder="Search all Indian mutual fund schemes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-9 py-2 text-xs font-medium rounded-xl bg-slate-900/90 text-white placeholder-slate-500 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all"
+              className="w-full pl-9 pr-9 py-2 text-xs font-medium rounded-xl bg-white dark:bg-slate-900/90 text-slate-900 dark:text-white placeholder-slate-400 border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-[#CD9B30]/30 focus:border-[#CD9B30] transition-all shadow-sm"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white"
               >
                 <XCircle className="h-4 w-4" />
               </button>
             )}
           </div>
-
-          {/* Scheme Option Dropdown (Growth / Bonus Option / IDCW) */}
-          <div className="relative shrink-0">
-            <select
-              value={selectedSchemeOption || 'all'}
-              onChange={(e) => onSelectSchemeOption && onSelectSchemeOption(e.target.value)}
-              className="px-3 py-2 text-xs font-semibold rounded-xl bg-slate-900/90 text-white border border-slate-800 hover:border-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 cursor-pointer transition-all shadow-sm"
-              title="Filter by option: Growth, Bonus Option, IDCW"
-            >
-              <option value="all">All Options</option>
-              <option value="growth">Growth</option>
-              <option value="bonus">Bonus Option</option>
-              <option value="idcw">IDCW</option>
-            </select>
-          </div>
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end flex-wrap">
           {mode === 'days' && customDaysList && customDaysList.length > 0 && (
-            <div className="px-2.5 py-1 rounded-lg bg-brand-500/10 border border-brand-500/30 text-brand-300 text-[11px] font-medium">
-              Day Columns: <span className="font-bold text-emerald-400">{customDaysList.join('D, ')}D</span>
+            <div className="px-2.5 py-1 rounded-lg bg-[#061C41]/5 dark:bg-brand-500/10 border border-[#061C41]/15 dark:border-brand-500/30 text-[#061C41] dark:text-brand-300 text-[11px] font-medium">
+              Day Columns: <span className="font-bold text-emerald-700 dark:text-emerald-400">{customDaysList.join('D, ')}D</span>
               {startDate && endDate && (
-                <span className="ml-1.5 text-slate-400 text-[10px]">({startDate} → {endDate})</span>
+                <span className="ml-1.5 text-slate-500 dark:text-slate-400 text-[10px]">({startDate} → {endDate})</span>
               )}
             </div>
           )}
-          <div className="text-xs text-slate-400 font-medium">
-            Total Schemes: <span className="text-white font-bold">{totalFunds.toLocaleString('en-IN')}</span> | Showing <span className="text-brand-400 font-bold">{selectedPlan === 'both' ? 'BOTH (Regular & Direct)' : selectedPlan.toUpperCase()}</span> Plan
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+            Total Schemes: <span className="text-slate-900 dark:text-white font-bold">{totalFunds.toLocaleString('en-IN')}</span> | Showing <span className="text-[#061C41] dark:text-brand-400 font-bold">{selectedPlan === 'both' ? 'BOTH (Regular & Direct)' : selectedPlan.toUpperCase()}</span> Plan
           </div>
         </div>
       </div>
 
       {/* Prominent Valuation & Calculation Date Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs shadow-md">
-        <div className="flex items-center gap-2 text-brand-300 font-medium">
-          <Calendar className="w-4 h-4 text-brand-400 shrink-0" />
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
+        <div className="flex items-center gap-2 text-slate-700 dark:text-brand-300 font-medium">
+          <Calendar className="w-4 h-4 text-[#CD9B30] shrink-0" />
           <span>
-            Valuation & Performance as of: <strong className="text-white font-bold">{calculationDate || 'Today'}</strong>
+            Valuation & Performance as of: <strong className="text-slate-900 dark:text-white font-bold">{calculationDate || 'Today'}</strong>
             {meta?.reportDate && (
-              <span className="text-slate-400 ml-2">
-                (Latest AMFI Data Date: <strong className="text-emerald-400 font-semibold">{meta.reportDate}</strong>)
+              <span className="text-slate-500 dark:text-slate-400 ml-2">
+                (Latest AMFI Data Date: <strong className="text-emerald-700 dark:text-emerald-400 font-semibold">{meta.reportDate}</strong>)
               </span>
             )}
           </span>
         </div>
-        <span className="text-slate-400 text-[11px] hidden sm:inline">
+        <span className="text-slate-500 dark:text-slate-400 text-[11px] hidden sm:inline">
           All fund NAV values and returns in this table are calculated as of this date
         </span>
       </div>
 
       {/* Main Fund Table */}
-      <div className="glass-card rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+      <div className="bg-white dark:bg-[#0B1936] rounded-2xl border border-slate-200 dark:border-slate-800/90 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
-            <thead className="bg-slate-900/90 text-slate-400 uppercase font-semibold border-b border-slate-800/80 tracking-wider">
+            <thead className="bg-slate-50/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-400 uppercase font-semibold border-b border-slate-200 dark:border-slate-800/80 tracking-wider text-[11px]">
               <tr>
                 {/* Select All Checkboxes Header (Blue: Custom List, Orange: Suggestion Sheet) */}
                 <th className="p-3.5 w-24 text-center">
@@ -218,25 +200,25 @@ const FundTable = ({
                       checked={allPageSelected}
                       onChange={() => onToggleSelectAllPage && onToggleSelectAllPage(sortedFunds)}
                       title="Select all on this page for Custom Fund List (Blue)"
-                      className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-blue-500 focus:ring-blue-500 cursor-pointer accent-blue-500"
+                      className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
                     />
                     <input
                       type="checkbox"
                       checked={allSuggestionSelected}
                       onChange={() => onToggleSelectAllSuggestionPage && onToggleSelectAllSuggestionPage(sortedFunds)}
                       title="Select all on this page for Suggestion Sheet (Orange)"
-                      className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-amber-500 focus:ring-amber-500 cursor-pointer accent-amber-500"
+                      className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-amber-500 focus:ring-amber-500 cursor-pointer accent-amber-500"
                     />
                   </div>
-                  <div className="flex items-center justify-center gap-2 text-[9px] text-slate-400 mt-1 font-mono select-none">
-                    <span className="text-blue-400 font-bold" title="Custom Fund List">Custom</span>
-                    <span className="text-amber-400 font-bold" title="Suggestion Sheet">Suggest</span>
+                  <div className="flex items-center justify-center gap-2 text-[9px] text-slate-500 dark:text-slate-400 mt-1 font-mono select-none">
+                    <span className="text-blue-600 dark:text-blue-400 font-bold" title="Custom Fund List">Custom</span>
+                    <span className="text-[#CD9B30] dark:text-amber-400 font-bold" title="Suggestion Sheet">Suggest</span>
                   </div>
                 </th>
 
                 <th 
                   onClick={() => handleSort('displayName')} 
-                  className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[220px]"
+                  className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[220px]"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Scheme Name</span>
@@ -246,7 +228,7 @@ const FundTable = ({
 
                 <th 
                   onClick={() => handleSort('category')} 
-                  className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[130px]"
+                  className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[130px]"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Category</span>
@@ -259,7 +241,7 @@ const FundTable = ({
                   <>
                     <th 
                       onClick={() => handleSort('regNav')} 
-                      className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[95px]"
+                      className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[95px]"
                     >
                       <div className="flex items-center gap-1.5">
                         <span>NAV (Reg)</span>
@@ -268,7 +250,7 @@ const FundTable = ({
                     </th>
                     <th 
                       onClick={() => handleSort('dirNav')} 
-                      className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[95px]"
+                      className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[95px]"
                     >
                       <div className="flex items-center gap-1.5">
                         <span>NAV (Dir)</span>
@@ -279,7 +261,7 @@ const FundTable = ({
                 ) : (
                   <th 
                     onClick={() => handleSort('currentNav')} 
-                    className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[100px]"
+                    className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[100px]"
                   >
                     <div className="flex items-center gap-1.5">
                       <span>Current NAV</span>
@@ -292,34 +274,34 @@ const FundTable = ({
                 {mode === 'yearly' ? (
                   selectedPlan === 'both' ? (
                     <>
-                      <th onClick={() => handleSort('regReturn1Yr')} className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[85px] text-center">
+                      <th onClick={() => handleSort('regReturn1Yr')} className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[85px] text-center">
                         <div className="flex items-center justify-center gap-1"><span>1Y Reg</span>{renderSortIcon('regReturn1Yr')}</div>
                       </th>
-                      <th onClick={() => handleSort('dirReturn1Yr')} className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[85px] text-center">
+                      <th onClick={() => handleSort('dirReturn1Yr')} className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[85px] text-center">
                         <div className="flex items-center justify-center gap-1"><span>1Y Dir</span>{renderSortIcon('dirReturn1Yr')}</div>
                       </th>
-                      <th onClick={() => handleSort('regReturn2Yr')} className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[85px] text-center">
+                      <th onClick={() => handleSort('regReturn2Yr')} className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[85px] text-center">
                         <div className="flex items-center justify-center gap-1"><span>2Y Reg</span>{renderSortIcon('regReturn2Yr')}</div>
                       </th>
-                      <th onClick={() => handleSort('dirReturn2Yr')} className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[85px] text-center">
+                      <th onClick={() => handleSort('dirReturn2Yr')} className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[85px] text-center">
                         <div className="flex items-center justify-center gap-1"><span>2Y Dir</span>{renderSortIcon('dirReturn2Yr')}</div>
                       </th>
-                      <th onClick={() => handleSort('regReturn3Yr')} className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[85px] text-center">
+                      <th onClick={() => handleSort('regReturn3Yr')} className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[85px] text-center">
                         <div className="flex items-center justify-center gap-1"><span>3Y Reg</span>{renderSortIcon('regReturn3Yr')}</div>
                       </th>
-                      <th onClick={() => handleSort('dirReturn3Yr')} className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[85px] text-center">
+                      <th onClick={() => handleSort('dirReturn3Yr')} className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[85px] text-center">
                         <div className="flex items-center justify-center gap-1"><span>3Y Dir</span>{renderSortIcon('dirReturn3Yr')}</div>
                       </th>
-                      <th onClick={() => handleSort('regReturn5Yr')} className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[85px] text-center">
+                      <th onClick={() => handleSort('regReturn5Yr')} className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[85px] text-center">
                         <div className="flex items-center justify-center gap-1"><span>5Y Reg</span>{renderSortIcon('regReturn5Yr')}</div>
                       </th>
-                      <th onClick={() => handleSort('dirReturn5Yr')} className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[85px] text-center">
+                      <th onClick={() => handleSort('dirReturn5Yr')} className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[85px] text-center">
                         <div className="flex items-center justify-center gap-1"><span>5Y Dir</span>{renderSortIcon('dirReturn5Yr')}</div>
                       </th>
-                      <th onClick={() => handleSort('regReturn10Yr')} className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[85px] text-center">
+                      <th onClick={() => handleSort('regReturn10Yr')} className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[85px] text-center">
                         <div className="flex items-center justify-center gap-1"><span>10Y Reg</span>{renderSortIcon('regReturn10Yr')}</div>
                       </th>
-                      <th onClick={() => handleSort('dirReturn10Yr')} className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[85px] text-center">
+                      <th onClick={() => handleSort('dirReturn10Yr')} className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[85px] text-center">
                         <div className="flex items-center justify-center gap-1"><span>10Y Dir</span>{renderSortIcon('dirReturn10Yr')}</div>
                       </th>
                     </>
@@ -327,7 +309,7 @@ const FundTable = ({
                     <>
                       <th 
                         onClick={() => handleSort('return1Yr')} 
-                        className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[90px]"
+                        className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[90px]"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>1 Yr (%)</span>
@@ -337,7 +319,7 @@ const FundTable = ({
 
                       <th 
                         onClick={() => handleSort('return2Yr')} 
-                        className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[90px]"
+                        className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[90px]"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>2 Yr (%)</span>
@@ -347,7 +329,7 @@ const FundTable = ({
 
                       <th 
                         onClick={() => handleSort('return3Yr')} 
-                        className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[90px]"
+                        className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[90px]"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>3 Yr (%)</span>
@@ -357,7 +339,7 @@ const FundTable = ({
 
                       <th 
                         onClick={() => handleSort('return5Yr')} 
-                        className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[90px]"
+                        className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[90px]"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>5 Yr (%)</span>
@@ -367,7 +349,7 @@ const FundTable = ({
 
                       <th 
                         onClick={() => handleSort('return10Yr')} 
-                        className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[90px]"
+                        className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[90px]"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>10 Yr (%)</span>
@@ -383,7 +365,7 @@ const FundTable = ({
                       <React.Fragment key={d}>
                         <th 
                           onClick={() => handleSort(`reg_return_${d}d`)} 
-                          className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[90px] text-center"
+                          className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[90px] text-center"
                         >
                           <div className="flex items-center justify-center gap-1">
                             <span>{d}D Reg</span>
@@ -392,7 +374,7 @@ const FundTable = ({
                         </th>
                         <th 
                           onClick={() => handleSort(`dir_return_${d}d`)} 
-                          className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[90px] text-center"
+                          className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[90px] text-center"
                         >
                           <div className="flex items-center justify-center gap-1">
                             <span>{d}D Dir</span>
@@ -404,7 +386,7 @@ const FundTable = ({
                       <th 
                         key={d}
                         onClick={() => handleSort(sortKey)} 
-                        className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[95px] text-center"
+                        className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[95px] text-center"
                       >
                         <div className="flex items-center justify-center gap-1.5">
                           <span>{d} Days (%)</span>
@@ -417,7 +399,7 @@ const FundTable = ({
 
                 <th 
                   onClick={() => handleSort('dailyAUMRaw')} 
-                  className="p-3.5 cursor-pointer hover:text-white transition-colors group select-none min-w-[110px]"
+                  className="p-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none min-w-[110px]"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>AUM</span>
@@ -430,31 +412,24 @@ const FundTable = ({
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-slate-800/60 font-sans">
+            <tbody className="divide-y divide-slate-200/80 dark:divide-slate-800/60 font-sans">
               {isLoading ? (
-                Array.from({ length: 8 }).map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    <td className="p-3.5 text-center"><div className="h-4 w-4 bg-slate-800 rounded mx-auto"></div></td>
-                    <td className="p-3.5"><div className="h-4 bg-slate-800 rounded w-48"></div></td>
-                    <td className="p-3.5"><div className="h-4 bg-slate-800 rounded w-20"></div></td>
-                    <td className="p-3.5"><div className="h-4 bg-slate-800 rounded w-16"></div></td>
-                    {selectedPlan === 'both' && <td className="p-3.5"><div className="h-4 bg-slate-800 rounded w-16"></div></td>}
-                    {Array.from({ length: selectedPlan === 'both' ? (mode === 'yearly' ? 10 : customDaysList.length * 2) : (mode === 'yearly' ? 5 : customDaysList.length) }).map((__, j) => (
-                      <td key={j} className="p-3.5"><div className="h-4 bg-slate-800 rounded w-14 mx-auto"></div></td>
-                    ))}
-                    <td className="p-3.5"><div className="h-4 bg-slate-800 rounded w-20"></div></td>
-                    <td className="p-3.5"><div className="h-4 bg-slate-800 rounded w-20"></div></td>
-                    <td className="p-3.5"><div className="h-4 bg-slate-800 rounded w-8 ml-auto"></div></td>
-                  </tr>
-                ))
+                <tr>
+                  <td colSpan={7 + (selectedPlan === 'both' ? 1 : 0) + (selectedPlan === 'both' ? (mode === 'yearly' ? 10 : customDaysList.length * 2) : (mode === 'yearly' ? 5 : customDaysList.length))} className="py-24 text-center">
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <div className="snazzy-spinner mx-auto"></div>
+                      <p className="text-sm font-medium text-slate-600 dark:text-slate-300 tracking-wide">Fetching fund data...</p>
+                    </div>
+                  </td>
+                </tr>
               ) : sortedFunds.length === 0 ? (
                 <tr>
-                  <td colSpan={7 + (selectedPlan === 'both' ? 1 : 0) + (selectedPlan === 'both' ? (mode === 'yearly' ? 10 : customDaysList.length * 2) : (mode === 'yearly' ? 5 : customDaysList.length))} className="p-12 text-center text-slate-400">
+                  <td colSpan={7 + (selectedPlan === 'both' ? 1 : 0) + (selectedPlan === 'both' ? (mode === 'yearly' ? 10 : customDaysList.length * 2) : (mode === 'yearly' ? 5 : customDaysList.length))} className="p-12 text-center text-slate-500 dark:text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <AlertCircle className="h-8 w-8 text-slate-500" />
-                      <p className="text-sm font-semibold text-slate-300">No matching schemes found</p>
+                      <AlertCircle className="h-8 w-8 text-slate-400 dark:text-slate-500" />
+                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">No funds found</p>
                       <p className="text-xs text-slate-500 max-w-sm">
-                        Try searching for a different scheme name or clearing the category filter.
+                        Try changing your search or filters.
                       </p>
                     </div>
                   </td>
@@ -467,13 +442,13 @@ const FundTable = ({
                   return (
                     <tr 
                       key={fund.id}
-                      className={`hover:bg-slate-800/50 transition-colors duration-150 group ${
+                      className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors duration-150 group ${
                         isCustomChecked && isSuggestionChecked
-                          ? 'bg-indigo-500/10 border-l-2 border-l-indigo-400'
+                          ? 'bg-indigo-50/70 dark:bg-indigo-500/10 border-l-2 border-l-indigo-600 dark:border-l-indigo-400'
                           : isCustomChecked
-                          ? 'bg-blue-500/10 border-l-2 border-l-blue-500'
+                          ? 'bg-blue-50/70 dark:bg-blue-500/10 border-l-2 border-l-blue-600 dark:border-l-blue-500'
                           : isSuggestionChecked
-                          ? 'bg-amber-500/10 border-l-2 border-l-amber-500'
+                          ? 'bg-amber-50/70 dark:bg-amber-500/10 border-l-2 border-l-amber-600 dark:border-l-amber-500'
                           : ''
                       }`}
                     >
@@ -488,14 +463,14 @@ const FundTable = ({
                             checked={isCustomChecked}
                             onChange={() => onToggleSelectFund && onToggleSelectFund(fund.id)}
                             title="Add to Custom Fund List (Blue)"
-                            className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-blue-500 focus:ring-blue-500 cursor-pointer accent-blue-500"
+                            className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
                           />
                           <input
                             type="checkbox"
                             checked={isSuggestionChecked}
                             onChange={() => onToggleSuggestionFund && onToggleSuggestionFund(fund.id)}
                             title="Add to Suggestion Sheet (Orange)"
-                            className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-amber-500 focus:ring-amber-500 cursor-pointer accent-amber-500"
+                            className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-amber-500 focus:ring-amber-500 cursor-pointer accent-amber-500"
                           />
                         </div>
                       </td>
@@ -510,17 +485,17 @@ const FundTable = ({
                         }}
                         title="Click to view fund details"
                       >
-                        <div className="font-bold text-white group-hover:text-brand-300 transition-colors select-text">
+                        <div className="font-bold text-slate-900 dark:text-white group-hover:text-[#061C41] dark:group-hover:text-brand-300 transition-colors select-text">
                           {fund.displayName}
                         </div>
-                        <div className="text-[10px] text-slate-400 mt-0.5 select-text">
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 select-text">
                           {fund.amcName}
                         </div>
                       </td>
 
                       {/* Category */}
                       <td className="p-3.5 whitespace-nowrap">
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                           {fund.category}
                         </span>
                       </td>
@@ -528,15 +503,15 @@ const FundTable = ({
                       {/* NAV Column(s) */}
                       {selectedPlan === 'both' ? (
                         <>
-                          <td className="p-3.5 whitespace-nowrap font-mono text-[11px] text-slate-200">
+                          <td className="p-3.5 whitespace-nowrap font-mono text-[11px] text-slate-800 dark:text-slate-200">
                             {formatNav(fund.regNav ?? fund.currentNav)}
                           </td>
-                          <td className="p-3.5 whitespace-nowrap font-mono text-[11px] text-emerald-300">
+                          <td className="p-3.5 whitespace-nowrap font-mono text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold">
                             {formatNav(fund.dirNav ?? fund.currentNav)}
                           </td>
                         </>
                       ) : (
-                        <td className="p-3.5 whitespace-nowrap font-mono text-[11px] text-slate-200">
+                        <td className="p-3.5 whitespace-nowrap font-mono text-[11px] text-slate-800 dark:text-slate-200">
                           {formatNav(fund.currentNav)}
                         </td>
                       )}
@@ -601,7 +576,7 @@ const FundTable = ({
                       )}
 
                       {/* AUM */}
-                      <td className="p-3.5 whitespace-nowrap font-semibold text-slate-200">
+                      <td className="p-3.5 whitespace-nowrap font-semibold text-slate-800 dark:text-slate-200">
                         {fund.dailyAUMFormatted}
                       </td>
 
@@ -617,7 +592,7 @@ const FundTable = ({
                             e.stopPropagation();
                             onSelectFund(fund);
                           }}
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-brand-600 text-slate-300 hover:text-white transition-all shadow-sm"
+                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#061C41] text-slate-600 hover:text-white dark:bg-slate-800 dark:hover:bg-brand-600 dark:text-slate-300 dark:hover:text-white transition-all shadow-sm"
                           title="View detailed performance"
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
@@ -633,16 +608,16 @@ const FundTable = ({
 
         {/* Pagination Bar */}
         {totalPages > 1 && (
-          <div className="px-5 py-3.5 bg-slate-900/90 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="text-xs text-slate-400">
-              Page <span className="font-bold text-white">{page}</span> of <span className="font-bold text-white">{totalPages}</span>
+          <div className="px-5 py-3.5 bg-slate-50 dark:bg-slate-900/90 border-t border-slate-200 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              Page <span className="font-bold text-slate-900 dark:text-white">{page}</span> of <span className="font-bold text-slate-900 dark:text-white">{totalPages}</span>
             </div>
 
             <div className="flex items-center gap-2">
               <button
                 onClick={() => onPageChange(page - 1)}
                 disabled={page <= 1}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
               >
                 <ChevronLeft className="h-4 w-4" />
                 <span>Previous</span>
@@ -651,7 +626,7 @@ const FundTable = ({
               <button
                 onClick={() => onPageChange(page + 1)}
                 disabled={page >= totalPages}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
               >
                 <span>Next</span>
                 <ChevronRight className="h-4 w-4" />

@@ -196,12 +196,13 @@ const getFundById = async (req, res) => {
 const getCategories = async (req, res) => {
   try {
     const categories = await amfiService.getCategories();
+    const totalGrowthFunds = categories.reduce((sum, c) => sum + (c.count || 0), 0);
     res.json({
       success: true,
       data: {
         categories,
         totalCategories: categories.length,
-        totalFunds: amfiService.masterSchemes.length
+        totalFunds: totalGrowthFunds
       }
     });
   } catch (error) {

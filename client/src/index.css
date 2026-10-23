@@ -2,143 +2,329 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   SNAZZY WEALTH DESIGN TOKEN SYSTEM
+   Visual Language: Trust, Clarity, Professional Financial Architecture
+   Colors: Snazzy Navy (#061C41), Snazzy Gold (#CD9B30), Slate Neutrals
+   ========================================================================== */
+
+:root,
+html.light,
+html[data-theme="light"] {
+  /* Brand Tokens */
+  --brand-navy: #061C41;
+  --brand-navy-hover: #0A2B66;
+  --brand-navy-subtle: #EDF2F9;
+  --brand-burgundy: #891228;
+  --brand-burgundy-hover: #700E20;
+  --brand-burgundy-subtle: #FAF0F2;
+  --brand-gold: #CD9B30;
+  --brand-gold-hover: #B8861E;
+  --brand-gold-subtle: #FBF6EA;
+
+  /* Surfaces & Backgrounds */
+  --bg-app: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #F1F5F9;
+  --bg-surface-subtle: #E2E8F0;
+  --bg-header: #FFFFFF;
+
+  /* Typography */
+  --text-primary: #0A192F;
+  --text-secondary: #334155;
+  --text-muted: #64748B;
+  --text-inverse: #FFFFFF;
+  --text-gold: #A17417;
+
+  /* Borders & Dividers */
+  --border-subtle: #E2E8F0;
+  --border-default: #CBD5E1;
+  --border-strong: #94A3B8;
+  --border-gold: rgba(205, 155, 48, 0.4);
+
+  /* Financial Semantics */
+  --positive: #047857;
+  --positive-bg: #ECFDF5;
+  --positive-border: #A7F3D0;
+  --negative: #DC2626;
+  --negative-bg: #FEF2F2;
+  --negative-border: #FECACA;
+  --warning: #D97706;
+
+  /* Elevation */
+  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 16px -2px rgba(6, 28, 65, 0.06), 0 2px 4px -1px rgba(6, 28, 65, 0.04);
+  --shadow-lg: 0 10px 25px -5px rgba(6, 28, 65, 0.08), 0 8px 10px -6px rgba(6, 28, 65, 0.04);
+  --scrollbar-thumb: #CBD5E1;
+  --scrollbar-track: #F1F5F9;
+}
+
+html.dark,
+html[data-theme="dark"] {
+  /* Brand Tokens */
+  --brand-navy: #061C41;
+  --brand-navy-hover: #0D2D68;
+  --brand-navy-subtle: #122549;
+  --brand-burgundy: #A82038;
+  --brand-burgundy-hover: #891228;
+  --brand-burgundy-subtle: #2A1017;
+  --brand-gold: #CD9B30;
+  --brand-gold-hover: #E0AD3B;
+  --brand-gold-subtle: #241E11;
+
+  /* Surfaces & Backgrounds - Calming Deep Navy Palette */
+  --bg-app: #061024;
+  --bg-surface: #0B1936;
+  --bg-surface-elevated: #102347;
+  --bg-surface-subtle: #162D5A;
+  --bg-header: #08142C;
+
+  /* Typography */
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-muted: #8397B8;
+  --text-inverse: #061C41;
+  --text-gold: #E0AD3B;
+
+  /* Borders & Dividers */
+  --border-subtle: #18315E;
+  --border-default: #23447E;
+  --border-strong: #335C9E;
+  --border-gold: rgba(205, 155, 48, 0.45);
+
+  /* Financial Semantics */
+  --positive: #10B981;
+  --positive-bg: rgba(16, 185, 129, 0.1);
+  --positive-border: rgba(16, 185, 129, 0.25);
+  --negative: #F43F5E;
+  --negative-bg: rgba(244, 63, 94, 0.1);
+  --negative-border: rgba(244, 63, 94, 0.25);
+  --warning: #F59E0B;
+
+  /* Elevation */
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 20px -2px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 12px 30px -4px rgba(0, 0, 0, 0.6);
+  --scrollbar-thumb: #1E355B;
+  --scrollbar-track: #091428;
+}
+
 @layer base {
   body {
-    @apply transition-colors duration-300;
+    background-color: var(--bg-app);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  h1, h2, h3, h4, .font-serif {
+    font-family: 'Inter', sans-serif;
   }
 }
 
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--scrollbar-track);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.4);
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.7);
+  background: var(--brand-gold);
 }
 
-/* Glassmorphism card utilities */
-.glass-card {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* ==========================================================================
+   COMPONENT STYLES: SNAZZY CARDS, PILLS & CONTAINERS
+   Clean, Calm, Professional Depth
+   ========================================================================== */
+
+/* Universal Card System */
+.glass-card,
+.snazzy-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-md);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.glass-pill {
-  background: rgba(30, 41, 59, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+/* Sub-card & Pills */
+.glass-pill,
+.snazzy-pill {
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
 }
 
-/* =========================================================
-   LIGHT MODE DESIGN SYSTEM - Sophisticated High Contrast
-   ========================================================= */
+/* ==========================================================================
+   LIGHT MODE PRECISE THEME HARMONY
+   ========================================================================== */
 html.light,
-html.light body,
-html.light .app-container {
-  background-color: #f8fafc !important;
-  color: #0f172a !important;
+html[data-theme="light"] {
+  background-color: #F8FAFC !important;
+  color: #0F172A !important;
 }
 
 html.light header {
-  background-color: rgba(255, 255, 255, 0.92) !important;
-  border-color: #e2e8f0 !important;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: 0 1px 3px 0 rgba(6, 28, 65, 0.05) !important;
 }
 
-html.light .glass-card {
-  background: rgba(255, 255, 255, 0.95) !important;
-  border-color: #e2e8f0 !important;
-  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.05), 0 2px 4px -1px rgba(15, 23, 42, 0.03) !important;
-}
-
-html.light .glass-pill {
-  background: rgba(241, 245, 249, 0.95) !important;
-  border-color: #cbd5e1 !important;
-  color: #334155 !important;
-}
-
-/* Light Mode Typography Hierarchy */
-html.light .text-white {
-  color: #0f172a !important;
-}
-
-html.light .text-slate-100 {
-  color: #0f172a !important;
-}
-
-html.light .text-slate-200 {
-  color: #1e293b !important;
-}
-
-html.light .text-slate-300 {
-  color: #334155 !important;
-}
-
-html.light .text-slate-400 {
-  color: #64748b !important;
-}
-
-html.light .text-slate-500 {
-  color: #64748b !important;
-}
-
-/* Light Mode Background Surfaces */
 html.light .bg-slate-950,
-html.light .bg-slate-950\/80 {
-  background-color: #f8fafc !important;
+html.light .bg-slate-950\/80,
+html.light .bg-slate-950\/60 {
+  background-color: #F8FAFC !important;
 }
 
 html.light .bg-slate-900,
 html.light .bg-slate-900\/90,
 html.light .bg-slate-900\/95,
+html.light .bg-slate-900\/80,
 html.light .bg-slate-900\/60 {
-  background-color: #ffffff !important;
+  background-color: #FFFFFF !important;
 }
 
 html.light .bg-slate-800,
-html.light .bg-slate-800\/80,
 html.light .bg-slate-800\/90,
+html.light .bg-slate-800\/80,
+html.light .bg-slate-800\/60,
 html.light .bg-slate-800\/50,
-html.light .bg-slate-800\/60 {
-  background-color: #f1f5f9 !important;
-  color: #334155 !important;
+html.light .bg-slate-800\/40 {
+  background-color: #F1F5F9 !important;
+  color: #1E293B !important;
 }
 
-/* Light Mode Borders */
 html.light .border-slate-800,
-html.light .border-slate-800\/40,
 html.light .border-slate-800\/80,
+html.light .border-slate-800\/60,
+html.light .border-slate-800\/40,
 html.light .border-slate-700,
-html.light .border-slate-700\/60,
-html.light .border-slate-700\/80 {
-  border-color: #e2e8f0 !important;
+html.light .border-slate-700\/80,
+html.light .border-slate-700\/60 {
+  border-color: #E2E8F0 !important;
 }
 
-/* Light Mode Inputs and Selects */
-html.light input,
+/* Light Mode High-Contrast Rules for Dark Elements & Buttons */
+html.light .text-white,
+html[data-theme="light"] .text-white {
+  color: #FFFFFF !important;
+}
+
+/* Ensure all dark action buttons, chips, and pills in Light Mode have crisp white text & icons */
+html.light .bg-snazzy-navy,
+html.light .bg-snazzy-burgundy,
+html.light .bg-\[\#061C41\],
+html.light .bg-\[\#891228\],
+html.light .bg-emerald-700,
+html.light .bg-emerald-600,
+html.light .bg-rose-600,
+html.light .bg-brand-500,
+html.light .bg-brand-600,
+html.light button.bg-snazzy-navy,
+html.light button.bg-snazzy-burgundy,
+html.light button.bg-\[\#061C41\],
+html.light button.bg-\[\#891228\],
+html.light button.bg-emerald-700,
+html.light button.bg-emerald-600,
+html.light button.bg-rose-600,
+html.light .btn-primary,
+html.light .btn-snazzy-cta,
+html.light .btn-snazzy-corporate {
+  color: #FFFFFF;
+}
+
+/* Snazzy Wealth Button Utilities */
+.btn-snazzy-cta {
+  background-color: #891228;
+  color: #FFFFFF !important;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+.btn-snazzy-cta:hover {
+  background-color: #700E20;
+}
+
+.btn-snazzy-corporate {
+  background-color: #061C41;
+  color: #FFFFFF !important;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+.btn-snazzy-corporate:hover {
+  background-color: #0A2B66;
+}
+
+/* Snazzy Loading Spinner (Accent colored in light & dark) */
+.snazzy-spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid #E2E8F0;
+  border-top-color: #891228;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+html.dark .snazzy-spinner {
+  border-color: #18315E;
+  border-top-color: #CD9B30;
+}
+
+/* Ensure child icons and labels inside dark buttons inherit white unless explicitly colored */
+html.light .bg-snazzy-navy:not([class*="text-amber"]):not([class*="text-gold"]):not([class*="text-snazzy-gold"]),
+html.light .bg-snazzy-burgundy,
+html.light .bg-\[\#061C41\]:not([class*="text-amber"]):not([class*="text-gold"]):not([class*="text-snazzy-gold"]),
+html.light .bg-\[\#891228\],
+html.light button.bg-snazzy-navy:not([class*="text-amber"]):not([class*="text-gold"]):not([class*="text-snazzy-gold"]),
+html.light button.bg-snazzy-burgundy,
+html.light button.bg-\[\#061C41\]:not([class*="text-amber"]):not([class*="text-gold"]):not([class*="text-snazzy-gold"]),
+html.light button.bg-\[\#891228\],
+html.light button.bg-emerald-700,
+html.light button.bg-emerald-600 {
+  color: #FFFFFF !important;
+}
+
+html.light .bg-snazzy-navy.text-white,
+html.light .bg-\[\#061C41\].text-white,
+html.light button.bg-snazzy-navy.text-white,
+html.light button.bg-\[\#061C41\].text-white,
+html.light button.bg-emerald-700.text-white {
+  color: #FFFFFF !important;
+}
+
+/* Inputs & Form Controls */
+html.light input[type="text"],
+html.light input[type="number"],
+html.light input[type="date"],
 html.light select {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
-  border-color: #cbd5e1 !important;
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #CBD5E1 !important;
 }
 
 html.light input::placeholder {
-  color: #94a3b8 !important;
+  color: #94A3B8 !important;
 }
 
-/* Light Mode Table Styling */
+html.light input:focus,
+html.light select:focus {
+  border-color: #061C41 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(6, 28, 65, 0.15) !important;
+}
+
+/* Table in Light Mode */
 html.light thead,
-html.light thead.bg-slate-900\/90 {
-  background-color: #f1f5f9 !important;
-  border-color: #e2e8f0 !important;
+html.light thead tr,
+html.light thead.bg-slate-900\/90,
+html.light thead.bg-slate-900\/95 {
+  background-color: #F1F5F9 !important;
+  border-color: #E2E8F0 !important;
 }
 
 html.light thead th {
@@ -146,40 +332,89 @@ html.light thead th {
 }
 
 html.light table tbody tr {
-  border-color: #f1f5f9 !important;
+  border-color: #F1F5F9 !important;
+  background-color: #FFFFFF !important;
 }
 
 html.light table tbody tr:hover {
-  background-color: rgba(241, 245, 249, 0.8) !important;
+  background-color: #F8FAFC !important;
 }
 
-html.light .bg-brand-950\/30 {
-  background-color: rgba(238, 242, 255, 0.6) !important;
+/* Preserve gold accents on dark backgrounds */
+html.light .text-snazzy-gold,
+html[data-theme="light"] .text-snazzy-gold {
+  color: #CD9B30 !important;
 }
 
-/* Preserve bright white text on primary actionable buttons */
-html.light button.bg-brand-600,
-html.light button.bg-indigo-600,
-html.light button.bg-emerald-600,
-html.light button.bg-gradient-to-r,
-html.light .bg-brand-600,
-html.light .bg-indigo-600,
-html.light .bg-emerald-600 {
-  color: #ffffff !important;
-}
-
-html.light button.bg-brand-600 *,
-html.light button.bg-indigo-600 *,
-html.light button.bg-emerald-600 *,
-html.light button.bg-gradient-to-r * {
-  color: #ffffff !important;
-}
-
+/* Financial return values in light mode */
 html.light .text-emerald-400 {
-  color: #059669 !important;
+  color: #047857 !important;
 }
 
 html.light .text-rose-400 {
-  color: #e11d48 !important;
+  color: #DC2626 !important;
 }
 
+html.light .text-brand-300,
+html.light .text-brand-400 {
+  color: #061C41 !important;
+}
+
+html.light .text-amber-400 {
+  color: #B8861E !important;
+}
+
+/* ==========================================================================
+   DARK MODE PRECISE THEME HARMONY (Snazzy Midnight Navy)
+   ========================================================================== */
+html.dark,
+html[data-theme="dark"] {
+  background-color: #061024 !important;
+  color: #F8FAFC !important;
+}
+
+html.dark header {
+  background-color: rgba(8, 20, 44, 0.95) !important;
+  border-color: #18315E !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.45) !important;
+}
+
+html.dark .glass-card {
+  background-color: #0B1936 !important;
+  border-color: #18315E !important;
+}
+
+html.dark thead,
+html.dark thead.bg-slate-900\/90,
+html.dark thead.bg-slate-900\/95 {
+  background-color: #102347 !important;
+  border-color: #18315E !important;
+}
+
+html.dark thead th {
+  color: #94A3B8 !important;
+}
+
+html.dark table tbody tr {
+  border-color: #15294F !important;
+  background-color: #0B1936 !important;
+}
+
+html.dark table tbody tr:hover {
+  background-color: #11254F !important;
+}
+
+html.dark input[type="text"],
+html.dark input[type="number"],
+html.dark input[type="date"],
+html.dark select {
+  background-color: #08142C !important;
+  color: #F8FAFC !important;
+  border-color: #1E355B !important;
+}
+
+html.dark input:focus,
+html.dark select:focus {
+  border-color: #CD9B30 !important;
+  box-shadow: 0 0 0 2px rgba(205, 155, 48, 0.25) !important;
+}

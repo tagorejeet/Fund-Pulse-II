@@ -28,14 +28,14 @@ const StatusBadge = ({ isCached, lastUpdated, reportDate }) => {
       </div>
 
       {reportDate && (
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/80 text-slate-300 border border-slate-700/60">
-          <span className="text-slate-400">AMFI Date:</span>
-          <span className="font-semibold text-slate-100">{reportDate}</span>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 shadow-sm">
+          <span className="text-slate-500 dark:text-slate-400">AMFI Date:</span>
+          <span className="font-semibold text-slate-900 dark:text-slate-100">{reportDate}</span>
         </div>
       )}
 
       {formattedTime && (
-        <div className="hidden sm:inline-flex items-center gap-1.5 text-slate-400">
+        <div className="hidden sm:inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
           <span>Synced: {formattedTime}</span>
         </div>
       )}

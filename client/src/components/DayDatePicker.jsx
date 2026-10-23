@@ -117,33 +117,33 @@ const DayDatePicker = ({
   };
 
   return (
-    <div className="glass-card p-4 sm:p-5 rounded-2xl border border-brand-500/30 shadow-2xl bg-slate-900/90 space-y-4">
+    <div className="bg-white dark:bg-[#0B1936] p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
       
       {/* Top Banner: Formula & Title */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-brand-500/20 text-brand-400 border border-brand-500/30 shadow-inner">
+          <div className="p-2.5 rounded-xl bg-[#061C41]/10 text-[#061C41] dark:bg-brand-500/20 dark:text-brand-400 border border-[#061C41]/15 dark:border-brand-500/30 shadow-inner">
             <Calculator className="h-5 w-5" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-sm font-bold text-white tracking-wide">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-wide">
                 Custom Day Calculation Table
               </h3>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
                 SEBI Standard Returns
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
-              <span className="text-slate-300 font-medium">&lt; 1Y (D &lt; 365):</span> <code className="text-brand-300 font-mono font-semibold">((V_T - V_0) / V_0) × 100</code> (Absolute Return) &nbsp;|&nbsp; 
-              <span className="text-slate-300 font-medium"> ≥ 1Y (D ≥ 365):</span> <code className="text-brand-300 font-mono font-semibold">4 × ((V_T / V_0)^(365 / (4 × D)) - 1) × 100</code> (Annualized)
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <span className="text-slate-700 dark:text-slate-300 font-medium">&lt; 1Y (D &lt; 365):</span> <code className="text-[#061C41] dark:text-brand-300 font-mono font-semibold">((V_T - V_0) / V_0) × 100</code> (Absolute Return) &nbsp;|&nbsp; 
+              <span className="text-slate-700 dark:text-slate-300 font-medium"> ≥ 1Y (D ≥ 365):</span> <code className="text-[#061C41] dark:text-brand-300 font-mono font-semibold">4 × ((V_T / V_0)^(365 / (4 × D)) - 1) × 100</code> (Annualized)
             </p>
           </div>
         </div>
 
         {/* Quick Add Presets */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] text-slate-400 font-medium mr-1">Quick Add:</span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mr-1">Quick Add:</span>
           {POPULAR_DAY_PRESETS.map((d) => {
             const isAdded = days.includes(d);
             return (
@@ -154,8 +154,8 @@ const DayDatePicker = ({
                 disabled={isAdded}
                 className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-all ${
                   isAdded
-                    ? 'bg-slate-800/50 text-slate-500 border border-slate-800 cursor-default'
-                    : 'bg-slate-800 hover:bg-brand-600 hover:text-white text-slate-300 border border-slate-700/80 active:scale-95'
+                    ? 'bg-slate-100 dark:bg-slate-800/50 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-800 cursor-default'
+                    : 'bg-slate-100 hover:bg-[#061C41] hover:text-white dark:bg-slate-800 dark:hover:bg-brand-600 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/80 active:scale-95'
                 }`}
                 title={isAdded ? `Already in table` : `Add ${d} Days column`}
               >
@@ -173,14 +173,14 @@ const DayDatePicker = ({
         <div className="lg:col-span-8 space-y-3">
           
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5 text-brand-400" />
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 text-[#CD9B30]" />
               <span>Active Table Day Columns ({days.length}):</span>
             </span>
             <button
               type="button"
               onClick={handleResetDefaults}
-              className="text-[11px] text-slate-400 hover:text-brand-300 transition-colors flex items-center gap-1"
+              className="text-[11px] text-slate-500 dark:text-slate-400 hover:text-[#061C41] dark:hover:text-brand-300 transition-colors flex items-center gap-1"
             >
               <RotateCcw className="h-3 w-3" />
               <span>Reset to (33, 50, 67)</span>
@@ -188,22 +188,22 @@ const DayDatePicker = ({
           </div>
 
           {/* Active Chips List */}
-          <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 min-h-[46px]">
+          <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 min-h-[46px]">
             {days.length === 0 ? (
-              <span className="text-xs text-slate-500 italic pl-1">
+              <span className="text-xs text-slate-400 italic pl-1">
                 No days configured. Add days below to generate columns.
               </span>
             ) : (
               days.map((d) => (
                 <div
                   key={d}
-                  className="group inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-brand-500/15 text-brand-300 border border-brand-500/30 hover:border-brand-400 shadow-sm transition-all"
+                  className="group inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-[#061C41]/10 dark:bg-brand-500/15 text-[#061C41] dark:text-brand-300 border border-[#061C41]/20 dark:border-brand-500/30 hover:border-[#061C41]/40 shadow-sm transition-all"
                 >
                   <span>{d} Days</span>
                   <button
                     type="button"
                     onClick={() => handleRemoveDay(d)}
-                    className="p-0.5 rounded hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 transition-colors"
+                    className="p-0.5 rounded hover:bg-rose-500/20 text-slate-400 hover:text-rose-600 dark:hover:text-rose-300 transition-colors"
                     title={`Remove ${d} Days column`}
                   >
                     <X className="h-3.5 w-3.5" />
@@ -221,15 +221,15 @@ const DayDatePicker = ({
                 value={dayInput}
                 onChange={(e) => setDayInput(e.target.value)}
                 placeholder="Enter day numbers e.g. 33, 50, 67 or 120..."
-                className="w-full px-3.5 py-2 text-xs font-medium rounded-xl bg-slate-950 text-white placeholder-slate-500 border border-slate-700/80 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all"
+                className="w-full px-3.5 py-2 text-xs font-medium rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white placeholder-slate-400 border border-slate-300 dark:border-slate-700/80 focus:outline-none focus:ring-2 focus:ring-[#CD9B30]/30 focus:border-[#CD9B30] transition-all shadow-sm"
               />
             </div>
             
             <button
               type="submit"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 transition-all active:scale-95 whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-[#061C41] hover:bg-[#0B1936] dark:bg-slate-800 dark:hover:bg-slate-700 text-white border border-[#061C41] dark:border-slate-700 transition-all active:scale-95 whitespace-nowrap shadow-sm"
             >
-              <Plus className="h-3.5 w-3.5 text-brand-400" />
+              <Plus className="h-3.5 w-3.5 text-[#CD9B30]" />
               <span>Add Day(s)</span>
             </button>
           </form>
@@ -237,15 +237,15 @@ const DayDatePicker = ({
         </div>
 
         {/* Right Column: Calendar Date Range Calculator & Apply Button (Span 4) */}
-        <div className="lg:col-span-4 p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
+        <div className="lg:col-span-4 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3">
           
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Calendar Range to Days</span>
             </span>
             {rangeCalculatedDays && (
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
                 {rangeCalculatedDays} Days
               </span>
             )}
@@ -253,21 +253,21 @@ const DayDatePicker = ({
 
           <div className="grid grid-cols-2 gap-2 text-[11px]">
             <div>
-              <span className="text-[10px] text-slate-400 block mb-1">V₀ Start Date</span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 block mb-1">V₀ Start Date</span>
               <input
                 type="date"
                 value={rangeStart}
                 onChange={(e) => setRangeStart(e.target.value)}
-                className="w-full px-2 py-1 text-xs rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500"
+                className="w-full px-2 py-1 text-xs rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-emerald-500 shadow-sm"
               />
               {rangeStart && (
-                <span className="text-[9px] font-bold text-brand-300 block mt-0.5">
+                <span className="text-[9px] font-bold text-[#061C41] dark:text-brand-300 block mt-0.5">
                   {new Date(rangeStart).toLocaleDateString('en-US', { weekday: 'short' })}
                 </span>
               )}
             </div>
             <div>
-              <span className="text-[10px] text-slate-400 block mb-1">VT End Date</span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 block mb-1">VT End Date</span>
               <input
                 type="date"
                 value={rangeEnd}
@@ -275,10 +275,10 @@ const DayDatePicker = ({
                   setRangeEnd(e.target.value);
                   if (onSelectCalculationDate) onSelectCalculationDate(e.target.value);
                 }}
-                className="w-full px-2 py-1 text-xs rounded-lg bg-slate-900 text-white border border-slate-700 focus:outline-none focus:border-emerald-500"
+                className="w-full px-2 py-1 text-xs rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-emerald-500 shadow-sm"
               />
               {rangeEnd && (
-                <span className="text-[9px] font-bold text-emerald-400 block mt-0.5">
+                <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 block mt-0.5">
                   {new Date(rangeEnd).toLocaleDateString('en-US', { weekday: 'short' })}
                 </span>
               )}
@@ -290,7 +290,7 @@ const DayDatePicker = ({
               type="button"
               onClick={handleAddRangeDays}
               disabled={days.includes(rangeCalculatedDays)}
-              className="w-full py-1 text-[11px] font-semibold rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition-all flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-default"
+              className="w-full py-1 text-[11px] font-semibold rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition-all flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-default"
             >
               <Plus className="h-3 w-3" />
               <span>{days.includes(rangeCalculatedDays) ? `${rangeCalculatedDays}D already in table` : `Add ${rangeCalculatedDays} Days to Table`}</span>
@@ -301,9 +301,9 @@ const DayDatePicker = ({
           <button
             type="button"
             onClick={handleApply}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-gradient-to-r from-brand-600 via-indigo-600 to-emerald-600 hover:from-brand-500 hover:to-emerald-500 text-white shadow-lg border border-brand-400/40 transition-all active:scale-95"
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-[#061C41] hover:bg-[#0B1936] dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white shadow-sm border border-black/10 dark:border-emerald-500/40 transition-all active:scale-95"
           >
-            <Check className="h-4 w-4" />
+            <Check className="h-4 w-4 text-[#CD9B30] dark:text-emerald-200" />
             <span>Calculate Table ({days.length} Day Columns)</span>
           </button>
 

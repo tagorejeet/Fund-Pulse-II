@@ -67,13 +67,8 @@ export function App() {
   const [appMode, setAppMode] = useState('analysis');
 
   // Navigation & View State (for Fund Analysis mode)
-  const [activeTab, setActiveTab] = useState(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_ACTIVE_TAB);
-      if (saved && ['all', 'custom', 'suggestion'].includes(saved)) return saved;
-    } catch (e) {}
-    return 'all';
-  });
+  // Default to Suggestion Sheet on startup / reload (Change 5)
+  const [activeTab, setActiveTab] = useState('suggestion');
 
   const [sipActiveTab, setSipActiveTab] = useState('calculator'); // 'calculator' | 'custom'
 
@@ -174,12 +169,12 @@ export function App() {
     return new Date().toISOString().split('T')[0];
   });
 
-  // Persist view state and custom configuration to localStorage
+  // Clear legacy active tab storage so startup/reload always defaults to Suggestion Sheet
   useEffect(() => {
     try {
-      localStorage.setItem(LOCAL_STORAGE_ACTIVE_TAB, activeTab);
+      localStorage.removeItem(LOCAL_STORAGE_ACTIVE_TAB);
     } catch (e) {}
-  }, [activeTab]);
+  }, []);
 
   useEffect(() => {
     try {
@@ -223,7 +218,6 @@ export function App() {
   const [isSuggestionLoading, setIsSuggestionLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedOption, setSelectedOption] = useState('all');
 
   // Selected Fund Modal State
   const [selectedFundModal, setSelectedFundModal] = useState(null);
@@ -401,8 +395,7 @@ export function App() {
     daysList = customDaysList,
     sDate = startDate,
     eDate = endDate,
-    calcDate = calculationDate,
-    opt = selectedOption
+    calcDate = calculationDate
   ) => {
     const requestId = ++activeRequestIdRef.current;
     if (abortControllerRef.current) {
@@ -420,7 +413,7 @@ export function App() {
         category: cat,
         search: query,
         plan,
-        option: opt,
+        option: 'growth',
         page: p,
         limit: isSearchActive ? 30 : 50,
         days: formattedDays,
@@ -453,7 +446,7 @@ export function App() {
         setIsLoading(false);
       }
     }
-  }, [activeCategory, debouncedSearchQuery, selectedPlan, selectedOption, page, customDaysList, startDate, endDate, calculationDate]);
+  }, [activeCategory, debouncedSearchQuery, selectedPlan, page, customDaysList, startDate, endDate, calculationDate]);
 
   // Load Batch Schemes for Custom Fund List
   const loadCustomFunds = useCallback(async (
@@ -523,8 +516,8 @@ export function App() {
 
   // Initial Load & Effect triggers
   useEffect(() => {
-    loadFunds(activeCategory, debouncedSearchQuery, selectedPlan, page, customDaysList, startDate, endDate, calculationDate, selectedOption);
-  }, [activeCategory, debouncedSearchQuery, selectedPlan, selectedOption, page, customDaysList, startDate, endDate, calculationDate, loadFunds]);
+    loadFunds(activeCategory, debouncedSearchQuery, selectedPlan, page, customDaysList, startDate, endDate, calculationDate);
+  }, [activeCategory, debouncedSearchQuery, selectedPlan, page, customDaysList, startDate, endDate, calculationDate, loadFunds]);
 
   // Load custom funds when custom tab is active, or gently preload after initial mount
   useEffect(() => {
@@ -581,6 +574,9 @@ export function App() {
     setCalculationDate(newDate);
     setEndDate(newDate);
     setPage(1);
+    setIsLoading(true);
+    if (selectedFundIds.size > 0) setIsCustomLoading(true);
+    if (suggestionFundIds.size > 0) setIsSuggestionLoading(true);
     loadFunds(activeCategory, searchQuery, selectedPlan, 1, customDaysList, startDate, newDate, newDate);
     if (selectedFundIds.size > 0) {
       loadCustomFunds(selectedFundIds, selectedPlan, customDaysList, startDate, newDate, newDate);
@@ -785,7 +781,7 @@ export function App() {
   }, [categoriesList]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 font-sans antialiased">
+    <div className="min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-[#061024] text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-[#CD9B30]/30 selection:text-slate-900 dark:selection:text-white transition-colors duration-200">
       
       {/* Header Bar with Top-Level Mode Toggle */}
       <Header 
@@ -813,11 +809,11 @@ export function App() {
       {/* Manual Refresh Status Toast Banner */}
       {refreshStatusMessage && (
         <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-3">
-          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-slate-900 border border-brand-500/30 text-white text-xs shadow-lg animate-fade-in">
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-brand-500/30 text-slate-800 dark:text-white text-xs shadow-md animate-fade-in">
             {isRefreshing ? (
-              <RefreshCw className="w-4 h-4 text-brand-400 animate-spin shrink-0" />
+              <RefreshCw className="w-4 h-4 text-brand-500 animate-spin shrink-0" />
             ) : (
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             )}
             <span className="font-medium">{refreshStatusMessage}</span>
           </div>
@@ -916,11 +912,6 @@ export function App() {
                   searchQuery={searchQuery}
                   setSearchQuery={(q) => {
                     setSearchQuery(q);
-                    setPage(1);
-                  }}
-                  selectedSchemeOption={selectedOption}
-                  onSelectSchemeOption={(opt) => {
-                    setSelectedOption(opt);
                     setPage(1);
                   }}
                   meta={meta}

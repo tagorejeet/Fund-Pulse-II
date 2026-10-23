@@ -1,17 +1,28 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en" class="light" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FundPulse - Indian Mutual Fund Dashboard</title>
-    <meta name="description" content="Track live performance metrics of 34 curated Indian Mutual Funds sourced directly from AMFI India." />
-    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <title>Snazzy Wealth FundLens</title>
+    <meta name="description" content="Snazzy Wealth FundLens — Professional mutual fund analysis, performance tracking, and high-precision SIP calculations by Snazzy Wealth." />
+    <!-- Google Fonts: Inter, Source Serif 4, JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('snazzy_fundlens_theme') || localStorage.getItem('fundpulse_theme');
+          // Default MUST be light mode for new users
+          var theme = (saved === 'dark' || saved === 'light') ? saved : 'light';
+          document.documentElement.className = theme;
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-brand-500 selection:text-white">
+  <body class="bg-app text-primary min-h-screen font-sans antialiased selection:bg-amber-500 selection:text-white transition-colors duration-200">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

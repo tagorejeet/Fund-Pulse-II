@@ -63,7 +63,7 @@ export const exportSipToExcel = ({
   ];
 
   const summaryRows = [
-    ['FundPulse — Mutual Fund SIP Return Analysis'],
+    ['Snazzy Wealth FundLens — Mutual Fund SIP Return Analysis'],
     [
       `Calculation Date: ${calculationDate || todayStr}`,
       `AMFI Data Date: ${reportDate || 'Latest'}`,
@@ -146,7 +146,7 @@ export const exportSipToExcel = ({
     const periodData = fund.periods?.[activePeriodKey];
 
     const detailRows = [
-      [`FundPulse — Detailed Monthly SIP Cash Flow Ledger`],
+      [`Snazzy Wealth FundLens — Detailed Monthly SIP Cash Flow Ledger`],
       [`Scheme Name: ${fund.displayName || fund.amfiSchemeName}`],
       [`AMC: ${fund.amcName || 'N/A'}`, `Category: ${fund.category || 'N/A'}`, `Plan: ${planLabel}`],
       [`Analysis Period: ${activePeriodKey} (${periodData?.installmentsCount || 0} monthly installments)`, `Calculation Date: ${calculationDate || todayStr}`],

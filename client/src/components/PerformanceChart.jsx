@@ -49,7 +49,7 @@ const PerformanceChart = ({ fund }) => {
 
   if (chartData.length === 0) {
     return (
-      <div className="p-8 text-center text-slate-400 text-sm italic border border-slate-800 rounded-xl bg-slate-900/50">
+      <div className="p-8 text-center text-slate-500 dark:text-slate-400 text-sm italic border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900/50">
         No return data available for performance charting.
       </div>
     );
@@ -58,15 +58,15 @@ const PerformanceChart = ({ fund }) => {
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="glass-card p-3 rounded-lg border border-slate-700 shadow-xl text-xs space-y-1.5 min-w-[160px]">
-          <p className="font-bold text-slate-200 border-b border-slate-700/80 pb-1">{label}</p>
+        <div className="bg-white dark:bg-[#0B1936] p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-xl text-xs space-y-1.5 min-w-[160px]">
+          <p className="font-bold text-slate-900 dark:text-slate-200 border-b border-slate-100 dark:border-slate-700/80 pb-1">{label}</p>
           {payload.map((entry, index) => (
             <div key={index} className="flex items-center justify-between gap-4">
               <span className="flex items-center gap-1.5" style={{ color: entry.color }}>
                 <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }}></span>
                 {entry.name}:
               </span>
-              <span className="font-mono font-semibold text-slate-100">
+              <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
                 {entry.value !== null && entry.value !== undefined ? `${entry.value}%` : 'N/A'}
               </span>
             </div>
@@ -78,25 +78,25 @@ const PerformanceChart = ({ fund }) => {
   };
 
   return (
-    <div className="w-full bg-slate-900/80 border border-slate-800 rounded-xl p-4 shadow-inner">
+    <div className="w-full bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm transition-colors">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h4 className="text-sm font-bold text-slate-200">Annualized Returns Comparison (%)</h4>
-          <p className="text-xs text-slate-400">Regular Plan vs Direct Plan vs Benchmark ({fund.benchmark})</p>
+          <h4 className="text-sm font-bold text-slate-900 dark:text-slate-200">Annualized Returns Comparison (%)</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Regular Plan vs Direct Plan vs Benchmark ({fund.benchmark})</p>
         </div>
       </div>
 
       <div className="h-64 sm:h-72 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.5} />
-            <XAxis dataKey="period" stroke="#94a3b8" tick={{ fontSize: 12 }} />
-            <YAxis stroke="#94a3b8" tick={{ fontSize: 12 }} unit="%" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" opacity={0.2} />
+            <XAxis dataKey="period" stroke="#64748b" tick={{ fontSize: 12 }} />
+            <YAxis stroke="#64748b" tick={{ fontSize: 12 }} unit="%" />
             <Tooltip content={<CustomTooltip />} />
             <Legend wrapperStyle={{ paddingTop: 10, fontSize: 12 }} />
-            <Bar dataKey="Regular Plan (%)" fill="#6366f1" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="Regular Plan (%)" fill="#061C41" radius={[4, 4, 0, 0]} />
             <Bar dataKey="Direct Plan (%)" fill="#10b981" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="Benchmark (%)" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="Benchmark (%)" fill="#CD9B30" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

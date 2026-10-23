@@ -247,10 +247,27 @@ export const CustomFundList = ({
     return `₹${Number(val).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
+  const determineOption = (fund) => {
+    if (fund.schemeOption) return fund.schemeOption;
+    const name = fund.displayName || '';
+    const lower = name.toLowerCase().trim();
+    if (/\bbonus\b/i.test(lower)) return 'bonus';
+    if (/\b(idcw|dividend|div)\b/i.test(lower)) return 'idcw';
+    if (/(\s*-\s*growth\b|\s*-\s*gr\b|\bgrowth\s*option\b|\bgrowth\s*plan\b|\(growth\)|\(gr\)|\bregular\s+growth\b|\bdirect\s+growth\b|\s*-\s*growth\s*$|\bgrowth\s*$)/i.test(lower)) {
+      return 'growth';
+    }
+    return 'other';
+  };
+
+  const growthFunds = useMemo(() => {
+    if (!funds) return [];
+    return funds.filter(f => determineOption(f) === 'growth');
+  }, [funds]);
+
   // Group mutual funds by category
   const groupedFunds = useMemo(() => {
     const groups = {};
-    funds.forEach(fund => {
+    growthFunds.forEach(fund => {
       const cat = fund.category || 'Other';
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(fund);
@@ -261,11 +278,11 @@ export const CustomFundList = ({
       const orderB = CATEGORY_ORDER[catB] || 99;
       return orderA - orderB;
     });
-  }, [funds]);
+  }, [growthFunds]);
 
   // Export handlers
   const handleExportCustomList = async () => {
-    const exportableAmfi = funds.filter(f => checkedForExportIds.has(f.id));
+    const exportableAmfi = growthFunds.filter(f => checkedForExportIds.has(f.id));
     const exportableNse = selectedNseIndicesList.filter(i => checkedNseExportIds.has(i.id));
     await exportCustomListToExcel({
       funds: exportableAmfi,
@@ -287,7 +304,7 @@ export const CustomFundList = ({
   };
 
   const handleExportEverything = async () => {
-    const exportableAmfi = funds.filter(f => checkedForExportIds.has(f.id));
+    const exportableAmfi = growthFunds.filter(f => checkedForExportIds.has(f.id));
     const exportableNse = selectedNseIndicesList.filter(i => checkedNseExportIds.has(i.id));
     await exportEverythingToExcel({
       funds: exportableAmfi,
@@ -302,37 +319,37 @@ export const CustomFundList = ({
     setExportMenuOpen(false);
   };
 
-  const checkedAmfiCount = funds.filter(f => checkedForExportIds.has(f.id)).length;
+  const checkedAmfiCount = growthFunds.filter(f => checkedForExportIds.has(f.id)).length;
   const checkedNseCount = selectedNseIndicesList.filter(i => checkedNseExportIds.has(i.id)).length;
   const isBoth = selectedPlan === 'both';
-  const totalCustomItems = funds.length + selectedNseIndicesList.length;
+  const totalCustomItems = growthFunds.length + selectedNseIndicesList.length;
 
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Top Controls & Comprehensive Portfolio Counters */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl bg-white dark:bg-[#0B1936] border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 font-serif sm:font-sans">
             {isSuggestion ? (
-              <Sparkles className="w-5 h-5 text-amber-400" />
+              <Sparkles className="w-5 h-5 text-[#CD9B30]" />
             ) : (
-              <CheckSquare className="w-5 h-5 text-blue-400" />
+              <CheckSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             )}
             <span>{displayTitle}</span>
             <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold font-mono ${
               isSuggestion 
-                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' 
-                : 'bg-brand-500/10 text-brand-400 border border-brand-500/30'
+                ? 'bg-[#CD9B30]/10 text-[#CD9B30] dark:text-amber-400 border border-[#CD9B30]/30' 
+                : 'bg-[#061C41]/10 text-[#061C41] dark:bg-brand-500/10 dark:text-brand-400 border border-[#061C41]/20 dark:border-brand-500/30'
             }`}>
-              {funds.length} Mutual Funds{selectedNseIndicesList.length > 0 ? ` + ${selectedNseIndicesList.length} NSE Indices` : ''}
+              {growthFunds.length} Mutual Funds{selectedNseIndicesList.length > 0 ? ` + ${selectedNseIndicesList.length} NSE Indices` : ''}
             </span>
           </h2>
-          <div className="text-xs text-slate-400 mt-1 flex flex-wrap items-center gap-2">
-            <span>AMFI: <strong className="text-white">{checkedAmfiCount}/{funds.length}</strong> checked for export</span>
+          <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-2">
+            <span>AMFI: <strong className="text-slate-900 dark:text-white">{checkedAmfiCount}/{growthFunds.length}</strong> checked for export</span>
             <span>•</span>
-            <span>NSE: <strong className="text-emerald-400">{checkedNseCount}/{selectedNseIndicesList.length}</strong> checked for export</span>
+            <span>NSE: <strong className="text-emerald-700 dark:text-emerald-400">{checkedNseCount}/{selectedNseIndicesList.length}</strong> checked for export</span>
             <span>•</span>
-            <span className="text-slate-500">Unchecked items remain visible in list</span>
+            <span className="text-slate-400 dark:text-slate-500">Unchecked items remain visible in list</span>
           </div>
         </div>
 
@@ -343,7 +360,7 @@ export const CustomFundList = ({
             <button
               onClick={() => setExportMenuOpen(!exportMenuOpen)}
               disabled={checkedAmfiCount === 0 && checkedNseCount === 0}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold text-xs transition-all shadow-lg shadow-emerald-600/20"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#891228] hover:bg-[#700E20] dark:bg-[#A82038] dark:hover:bg-[#891228] disabled:opacity-50 text-white font-semibold text-xs transition-all shadow-sm"
               title="Download Excel in exact Suggestion Sheet format"
             >
               <FileSpreadsheet className="w-4 h-4" />
@@ -352,38 +369,38 @@ export const CustomFundList = ({
             </button>
 
             {exportMenuOpen && (
-              <div className="absolute right-0 mt-2 w-72 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl z-30 overflow-hidden py-1.5 animate-scale-up font-sans">
+              <div className="absolute right-0 mt-2 w-72 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl z-30 overflow-hidden py-1.5 animate-scale-up font-sans">
                 <button
                   onClick={handleExportCustomList}
-                  className="w-full text-left px-4 py-2.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-start gap-2.5 transition-colors"
+                  className="w-full text-left px-4 py-2.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white flex items-start gap-2.5 transition-colors"
                 >
-                  <Download className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                  <Download className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
                   <div>
-                    <div className="font-semibold text-emerald-300">Download Suggestion Sheet (Import Excel)</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">Exact "Our Suggestion Sheet" format with Times New Roman & dynamic categories</div>
+                    <div className="font-semibold text-emerald-700 dark:text-emerald-300">Download Suggestion Sheet (Import Excel)</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Exact "Our Suggestion Sheet" format with Times New Roman & dynamic categories</div>
                   </div>
                 </button>
 
                 <button
                   onClick={handleExportNseOnly}
                   disabled={checkedNseCount === 0}
-                  className="w-full text-left px-4 py-2.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white disabled:opacity-40 flex items-start gap-2.5 transition-colors border-t border-slate-800"
+                  className="w-full text-left px-4 py-2.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white disabled:opacity-40 flex items-start gap-2.5 transition-colors border-t border-slate-100 dark:border-slate-800"
                 >
-                  <TrendingUp className="w-4 h-4 text-brand-400 mt-0.5 shrink-0" />
+                  <TrendingUp className="w-4 h-4 text-[#061C41] dark:text-brand-400 mt-0.5 shrink-0" />
                   <div>
                     <div className="font-semibold">Download NSE Indices</div>
-                    <div className="text-[10px] text-slate-400">Only selected NSE Benchmark Indices</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400">Only selected NSE Benchmark Indices</div>
                   </div>
                 </button>
 
                 <button
                   onClick={handleExportEverything}
-                  className="w-full text-left px-4 py-2.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-start gap-2.5 transition-colors border-t border-slate-800"
+                  className="w-full text-left px-4 py-2.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white flex items-start gap-2.5 transition-colors border-t border-slate-100 dark:border-slate-800"
                 >
-                  <Layers className="w-4 h-4 text-purple-400 mt-0.5 shrink-0" />
+                  <Layers className="w-4 h-4 text-[#CD9B30] dark:text-purple-400 mt-0.5 shrink-0" />
                   <div>
                     <div className="font-semibold">Download Everything</div>
-                    <div className="text-[10px] text-slate-400">Suggestion Sheet + NSE Indices + Combined Summary</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400">Suggestion Sheet + NSE Indices + Combined Summary</div>
                   </div>
                 </button>
               </div>
@@ -394,7 +411,7 @@ export const CustomFundList = ({
           {totalCustomItems > 0 && (
             <button
               onClick={() => setShowClearConfirm(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 border border-slate-700/80 hover:border-rose-500/30 text-xs font-semibold transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-500/20 text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-300 border border-slate-200 dark:border-slate-700/80 text-xs font-semibold transition-all shadow-sm"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Clear All</span>
@@ -405,27 +422,32 @@ export const CustomFundList = ({
 
       {/* SECTION 1: CUSTOM MUTUAL FUNDS */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+        <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-brand-400" />
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+            <Sparkles className="w-4 h-4 text-[#CD9B30]" />
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
               Custom Mutual Funds
             </h3>
-            <span className="text-xs text-slate-400">({funds.length} schemes)</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">({growthFunds.length} schemes)</span>
           </div>
 
-          {funds.length > 0 && (
+          {growthFunds.length > 0 && (
             <button
               onClick={handleToggleAllAmfiExport}
-              className="text-[11px] font-semibold text-brand-400 hover:text-brand-300 transition-colors"
+              className="text-[11px] font-semibold text-[#061C41] dark:text-brand-300 hover:underline transition-colors"
             >
-              {funds.every(f => checkedForExportIds.has(f.id)) ? 'Deselect All AMFI for Export' : 'Select All AMFI for Export'}
+              {growthFunds.every(f => checkedForExportIds.has(f.id)) ? 'Deselect All AMFI for Export' : 'Select All AMFI for Export'}
             </button>
           )}
         </div>
 
-        {funds.length === 0 ? (
-          <div className="p-8 rounded-2xl bg-slate-900/60 border border-slate-800/80 text-center text-slate-400 text-xs">
+        {isLoading ? (
+          <div className="py-24 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 flex flex-col items-center justify-center gap-3 text-center shadow-sm">
+            <div className="snazzy-spinner mx-auto"></div>
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-300 tracking-wide">Fetching fund data...</p>
+          </div>
+        ) : growthFunds.length === 0 ? (
+          <div className="p-8 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 text-center text-slate-500 dark:text-slate-400 text-xs shadow-sm">
             {isSuggestion 
               ? 'No mutual funds in Suggestion Sheet yet. Check the orange boxes beside schemes in the main table to add them.'
               : 'No mutual funds added to Custom List yet. Check the blue boxes beside schemes in the main table to add them.'}
@@ -435,26 +457,26 @@ export const CustomFundList = ({
             {groupedFunds.map(([category, catFunds]) => {
               const allCatChecked = catFunds.every(f => checkedForExportIds.has(f.id));
               return (
-                <div key={category} className="glass-card rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+                <div key={category} className="bg-white dark:bg-[#0B1936] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
                   {/* Category Header */}
-                  <div className="bg-slate-900/90 px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+                  <div className="bg-slate-50 dark:bg-slate-900/90 px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <input
                         type="checkbox"
                         checked={allCatChecked}
                         onChange={() => handleToggleCategoryExport(catFunds)}
                         title="Toggle export for this category"
-                        className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-brand-600 focus:ring-brand-500 cursor-pointer accent-brand-500"
+                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-[#061C41] focus:ring-[#061C41] cursor-pointer accent-[#061C41]"
                       />
-                      <span className="font-bold text-white text-xs">{category}</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">
+                      <span className="font-bold text-slate-900 dark:text-white text-xs">{category}</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400 font-mono">
                         {catFunds.length}
                       </span>
                     </div>
 
                     <button
                       onClick={() => handleToggleCategoryExport(catFunds)}
-                      className="text-[11px] text-slate-400 hover:text-white transition-colors"
+                      className="text-[11px] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
                     >
                       {allCatChecked ? 'Uncheck Category' : 'Check Category'}
                     </button>
@@ -463,7 +485,7 @@ export const CustomFundList = ({
                   {/* Fund Rows */}
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs text-left">
-                      <thead className="bg-slate-950/60 text-slate-400 uppercase font-semibold border-b border-slate-800/80">
+                      <thead className="bg-slate-50/70 dark:bg-slate-950/60 text-slate-600 dark:text-slate-400 uppercase font-semibold border-b border-slate-200 dark:border-slate-800/80 text-[11px]">
                         <tr>
                           <th className="p-3 w-10 text-center">Export</th>
                           <th className="p-3 min-w-[200px]">Scheme Name</th>
@@ -512,7 +534,7 @@ export const CustomFundList = ({
                           <th className="p-3 text-right pr-4">Action</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-800/60 font-mono">
+                      <tbody className="divide-y divide-slate-200/80 dark:divide-slate-800/60 font-mono">
                         {catFunds.map((fund) => {
                           const isChecked = checkedForExportIds.has(fund.id);
                           return (
@@ -523,8 +545,8 @@ export const CustomFundList = ({
                                 if (sel && sel.toString().trim().length > 0) return;
                                 if (onSelectFund) onSelectFund(fund);
                               }}
-                              className={`hover:bg-slate-800/40 cursor-pointer transition-colors ${
-                                !isChecked ? 'opacity-60 bg-slate-950/40' : ''
+                              className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer transition-colors ${
+                                !isChecked ? 'opacity-60 bg-slate-100/50 dark:bg-slate-950/40' : ''
                               }`}
                             >
                               <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
@@ -532,7 +554,7 @@ export const CustomFundList = ({
                                   type="checkbox"
                                   checked={isChecked}
                                   onChange={() => handleToggleExportFund(fund.id)}
-                                  className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-brand-600 focus:ring-brand-500 cursor-pointer accent-brand-500"
+                                  className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-[#061C41] focus:ring-[#061C41] cursor-pointer accent-[#061C41]"
                                 />
                               </td>
                               <td 
@@ -544,16 +566,16 @@ export const CustomFundList = ({
                                   }
                                 }}
                               >
-                                <div className="font-bold text-white text-xs select-text">{fund.displayName}</div>
-                                <div className="text-[10px] text-slate-400 mt-0.5 select-text">{fund.amcName}</div>
+                                <div className="font-bold text-slate-900 dark:text-white text-xs select-text">{fund.displayName}</div>
+                                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 select-text">{fund.amcName}</div>
                               </td>
                               {isBoth ? (
                                 <>
-                                  <td className="p-3 text-slate-200">{formatNav(fund.regNav ?? fund.currentNav)}</td>
-                                  <td className="p-3 text-emerald-300">{formatNav(fund.dirNav ?? fund.currentNav)}</td>
+                                  <td className="p-3 text-slate-800 dark:text-slate-200">{formatNav(fund.regNav ?? fund.currentNav)}</td>
+                                  <td className="p-3 text-emerald-700 dark:text-emerald-300 font-semibold">{formatNav(fund.dirNav ?? fund.currentNav)}</td>
                                 </>
                               ) : (
-                                <td className="p-3 text-slate-200">{formatNav(fund.currentNav)}</td>
+                                <td className="p-3 text-slate-800 dark:text-slate-200">{formatNav(fund.currentNav)}</td>
                               )}
                               {mode === 'yearly' ? (
                                 isBoth ? (
@@ -594,11 +616,11 @@ export const CustomFundList = ({
                                   return <td key={d} className="p-3 text-center">{formatPct(val)}</td>;
                                 })
                               )}
-                              <td className="p-3 text-slate-200">{fund.dailyAUMFormatted || 'N/A'}</td>
+                              <td className="p-3 text-slate-800 dark:text-slate-200">{fund.dailyAUMFormatted || 'N/A'}</td>
                               <td className="p-3 text-right pr-4" onClick={(e) => e.stopPropagation()}>
                                 <button
                                   onClick={() => handleRemoveFundAction(fund.id)}
-                                  className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500 text-rose-300 hover:text-white transition-all"
+                                  className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-500 text-rose-600 dark:text-rose-300 hover:text-white transition-all shadow-sm"
                                   title="Remove scheme from Custom List"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
@@ -618,20 +640,20 @@ export const CustomFundList = ({
       </div>
 
       {/* SECTION 2: NSE INDICES (Dedicated separate container below mutual funds) */}
-      <div className="space-y-4 pt-6 border-t-2 border-slate-800/80">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+      <div className="space-y-4 pt-6 border-t-2 border-slate-200 dark:border-slate-800/80">
+        <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+            <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
               Custom NSE Indices
             </h3>
-            <span className="text-xs text-slate-400">({selectedNseIndicesList.length} benchmark indices)</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">({selectedNseIndicesList.length} benchmark indices)</span>
           </div>
 
           {selectedNseIndicesList.length > 0 && (
             <button
               onClick={handleToggleAllNseExport}
-              className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
+              className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline transition-colors"
             >
               {selectedNseIndicesList.every(i => checkedNseExportIds.has(i.id)) ? 'Deselect All NSE for Export' : 'Select All NSE for Export'}
             </button>
@@ -639,14 +661,14 @@ export const CustomFundList = ({
         </div>
 
         {selectedNseIndicesList.length === 0 ? (
-          <div className="p-8 rounded-2xl bg-slate-900/60 border border-slate-800/80 text-center text-slate-400 text-xs">
+          <div className="p-8 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 text-center text-slate-500 dark:text-slate-400 text-xs shadow-sm">
             No NSE indices selected yet. Select checkboxes in the "NSE Indices" section at the bottom of the page to add them here.
           </div>
         ) : (
-          <div className="glass-card rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+          <div className="bg-white dark:bg-[#0B1936] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">
-                <thead className="bg-slate-900/90 text-slate-400 uppercase font-semibold border-b border-slate-800/80">
+                <thead className="bg-slate-50 dark:bg-slate-900/90 text-slate-600 dark:text-slate-400 uppercase font-semibold border-b border-slate-200 dark:border-slate-800/80 text-[11px]">
                   <tr>
                     <th className="p-3 w-10 text-center">Export</th>
                     <th className="p-3 min-w-[200px]">Index Name</th>
@@ -668,14 +690,14 @@ export const CustomFundList = ({
                     <th className="p-3 text-right pr-4">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60 font-mono">
+                <tbody className="divide-y divide-slate-200/80 dark:divide-slate-800/60 font-mono">
                   {selectedNseIndicesList.map(idx => {
                     const isChecked = checkedNseExportIds.has(idx.id);
                     return (
                       <tr 
                         key={idx.id} 
-                        className={`hover:bg-slate-800/40 transition-colors ${
-                          !isChecked ? 'opacity-60 bg-slate-950/40' : ''
+                        className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors ${
+                          !isChecked ? 'opacity-60 bg-slate-100/50 dark:bg-slate-950/40' : ''
                         }`}
                       >
                         <td className="p-3 text-center">
@@ -683,14 +705,14 @@ export const CustomFundList = ({
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => handleToggleNseExport(idx.id)}
-                            className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-brand-600 focus:ring-brand-500 cursor-pointer accent-brand-500"
+                            className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-[#061C41] focus:ring-[#061C41] cursor-pointer accent-[#061C41]"
                           />
                         </td>
                         <td className="p-3 font-sans">
-                          <div className="font-bold text-white text-xs">{idx.displayName}</div>
-                          <div className="text-[10px] text-brand-300 mt-0.5">{idx.officialName}</div>
+                          <div className="font-bold text-slate-900 dark:text-white text-xs">{idx.displayName}</div>
+                          <div className="text-[10px] text-slate-500 dark:text-brand-300 mt-0.5">{idx.officialName}</div>
                         </td>
-                        <td className="p-3 text-right font-bold text-white">
+                        <td className="p-3 text-right font-bold text-slate-900 dark:text-white">
                           {formatValue(idx.currentValue)}
                         </td>
                         {mode === 'days' ? (
@@ -709,17 +731,17 @@ export const CustomFundList = ({
                           </>
                         )}
                         <td className="p-3 text-center text-xs font-sans">
-                          <div className="font-bold text-white font-mono text-[12px]">
+                          <div className="font-bold text-slate-900 dark:text-white font-mono text-[12px]">
                             {idx.selectedDate || 'Today'}
                           </div>
-                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                            Trading: <span className="text-emerald-400 font-semibold">{idx.dataDate || 'N/A'}</span>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+                            Trading: <span className="text-emerald-700 dark:text-emerald-400 font-semibold">{idx.dataDate || 'N/A'}</span>
                           </div>
                         </td>
                         <td className="p-3 text-right pr-4">
                           <button
                             onClick={() => handleRemoveNseAction(idx.id)}
-                            className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500 text-rose-300 hover:text-white transition-all"
+                            className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-500 text-rose-600 dark:text-rose-300 hover:text-white transition-all shadow-sm"
                             title="Remove index from Custom List"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -737,18 +759,18 @@ export const CustomFundList = ({
 
       {/* Clear All Confirmation Modal */}
       {showClearConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in font-sans">
-          <div className="glass-card max-w-sm w-full p-6 rounded-2xl border border-slate-800 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3 text-rose-400">
-              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in font-sans">
+          <div className="bg-white dark:bg-[#0B1936] max-w-sm w-full p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
+              <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30">
                 <AlertTriangle className="h-6 w-6" />
               </div>
-              <h3 className="text-base font-bold text-white">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
                 {isSuggestion ? 'Clear Suggestion Sheet?' : 'Clear Custom Selection?'}
               </h3>
             </div>
             
-            <p className="text-xs text-slate-300">
+            <p className="text-xs text-slate-600 dark:text-slate-300">
               {isSuggestion 
                 ? 'Are you sure you want to clear your selected mutual funds and NSE indices from the suggestion sheet?' 
                 : 'Are you sure you want to clear your selected mutual funds and NSE indices from the custom list?'}
@@ -757,13 +779,13 @@ export const CustomFundList = ({
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 onClick={() => setShowClearConfirm(false)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all"
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-all border border-slate-200 dark:border-slate-700"
               >
                 Cancel
               </button>
               <button
                 onClick={handleClearAllAction}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shadow-lg transition-all"
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shadow-md transition-all"
               >
                 Yes, Clear All
               </button>

@@ -525,7 +525,7 @@ export const SipCalculator = ({
     if (periodData && !periodData.hasSufficientData) {
       return (
         <span 
-          className="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 border border-slate-700 font-sans"
+          className="px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700 font-sans"
           title={periodData.insufficientReason || 'Insufficient historical NAV depth'}
         >
           Insufficient data
@@ -533,12 +533,12 @@ export const SipCalculator = ({
       );
     }
     if (val === null || val === undefined || isNaN(val)) {
-      return <span className="text-slate-500">N/A</span>;
+      return <span className="text-slate-400 dark:text-slate-500 font-sans">N/A</span>;
     }
     const num = Number(val);
     const isPositive = num > 0;
     return (
-      <span className={`font-mono font-bold ${num === 0 ? 'text-slate-300' : isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+      <span className={`font-mono font-bold ${num === 0 ? 'text-slate-500 dark:text-slate-400' : isPositive ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
         {isPositive ? `+${num.toFixed(2)}%` : `${num.toFixed(2)}%`}
       </span>
     );
@@ -548,22 +548,22 @@ export const SipCalculator = ({
     <div className="space-y-6 my-2">
       
       {/* Hero Banner */}
-      <div className="glass-card p-6 rounded-2xl border border-slate-800 shadow-xl bg-gradient-to-r from-slate-900/90 via-slate-900/60 to-brand-950/30">
+      <div className="bg-white dark:bg-[#0B1936] p-5 sm:p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-600 text-white shadow-lg shadow-brand-500/25">
-              <Calculator className="h-7 w-7" />
+            <div className="p-3 rounded-xl bg-snazzy-navy text-snazzy-gold dark:bg-[#061C41] dark:text-snazzy-gold border border-snazzy-navy dark:border-snazzy-gold/30 shadow-sm">
+              <Calculator className="h-6 w-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                <h2 className="text-xl sm:text-2xl font-bold font-serif text-slate-900 dark:text-white tracking-tight">
                   Mutual Fund SIP Return Calculator
                 </h2>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20">
                   XIRR Engine
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Calculate multi-period SIP returns using historical monthly AMFI NAV data and dated cash-flow XIRR.
               </p>
             </div>
@@ -571,14 +571,14 @@ export const SipCalculator = ({
 
           <div className="flex items-center gap-2 w-full lg:w-auto justify-end flex-wrap">
             {/* View Mode Toggle: Calculator vs Custom Fund List */}
-            <div className="flex items-center p-1 bg-slate-900/95 rounded-xl border border-slate-700/80 shadow-inner">
+            <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setViewTab('calculator')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
                   viewTab === 'calculator'
-                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                    ? 'bg-snazzy-navy dark:bg-snazzy-gold text-white dark:text-snazzy-navy shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <Calculator className="h-3.5 w-3.5" />
@@ -588,16 +588,18 @@ export const SipCalculator = ({
               <button
                 type="button"
                 onClick={() => setViewTab('custom')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
                   viewTab === 'custom'
-                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                    ? 'bg-snazzy-navy dark:bg-snazzy-gold text-white dark:text-snazzy-navy shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <CheckSquare className="h-3.5 w-3.5" />
                 <span>Custom Fund List</span>
-                <span className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
-                  viewTab === 'custom' ? 'bg-white/20 text-white' : 'bg-slate-800 text-emerald-400 border border-emerald-500/30'
+                <span className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  viewTab === 'custom' 
+                    ? 'bg-white/20 dark:bg-snazzy-navy/20 text-white dark:text-snazzy-navy' 
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                 }`}>
                   {selectedFundIds.length}
                 </span>
@@ -607,7 +609,7 @@ export const SipCalculator = ({
             {customFundIds && customFundIds.size > 0 && (
               <button
                 onClick={handleImportCustomFunds}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-brand-300 text-xs font-semibold border border-brand-500/30 transition-all active:scale-95"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium border border-slate-200 dark:border-slate-700 transition-all active:scale-95"
               >
                 <Layers className="h-3.5 w-3.5" />
                 <span>Import {customFundIds.size} Custom Funds</span>
@@ -617,7 +619,7 @@ export const SipCalculator = ({
             <button
               onClick={handleExport}
               disabled={results.length === 0 || results.filter(r => checkedExportIds.has(r.fundId)).length === 0}
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg border border-emerald-500/40 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-snazzy-navy hover:bg-[#0A295F] text-snazzy-gold dark:bg-snazzy-gold dark:hover:bg-[#dba83a] dark:text-snazzy-navy shadow-sm border border-snazzy-gold/30 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
               title="Download checked mutual funds and NSE indices into Excel"
             >
               <FileSpreadsheet className="h-4 w-4" />
@@ -655,13 +657,13 @@ export const SipCalculator = ({
       {viewTab === 'calculator' && (
         <>
           {/* Input Parameters Controls Bar */}
-          <div className="glass-card p-5 rounded-2xl border border-slate-800 shadow-xl space-y-4">
+          <div className="bg-white dark:bg-[#0B1936] p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 transition-colors">
         
         {/* Top Controls: Search Fund & Quick Presets */}
         <div className="space-y-2">
-          <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+          <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center justify-between">
             <span>Select Mutual Funds</span>
-            <span className="text-[11px] text-slate-400 normal-case font-medium">
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 normal-case font-medium">
               Search by fund name, AMC, or category
             </span>
           </label>
@@ -679,14 +681,14 @@ export const SipCalculator = ({
                   }}
                   onFocus={() => setIsSearchOpen(true)}
                   placeholder="Search Mutual Fund to add (e.g. Nippon Small Cap, Axis ELSS, HDFC Top 100)..."
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all shadow-inner"
+                  className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-snazzy-navy dark:focus:ring-snazzy-gold focus:border-snazzy-navy dark:focus:border-snazzy-gold transition-colors"
                 />
               </div>
 
               {selectedFundIds.length > 0 && (
                 <button
                   onClick={handleClearAllFunds}
-                  className="px-3 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-semibold border border-rose-500/30 transition-all"
+                  className="px-3 py-2 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 dark:text-rose-300 text-xs font-medium border border-rose-200 dark:border-rose-500/30 transition-colors"
                   title="Clear all selected funds"
                 >
                   Clear All
@@ -704,7 +706,7 @@ export const SipCalculator = ({
 
             {/* Dropdown Suggestions */}
             {isSearchOpen && searchResults.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1.5 z-30 glass-card rounded-xl border border-slate-700 shadow-2xl overflow-hidden max-h-64 overflow-y-auto divide-y divide-slate-800">
+              <div className="absolute left-0 right-0 top-full mt-1.5 z-30 bg-white dark:bg-[#0B1936] rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
                 {searchResults.map(fund => {
                   const isSelected = selectedFundIds.includes(fund.id);
                   const navValue = fund.currentNav || (plan === 'direct' ? fund.navDirect : fund.navRegular) || fund.navRegular || fund.seedNavReg;
@@ -713,26 +715,32 @@ export const SipCalculator = ({
                       key={fund.id}
                       onClick={() => handleAddFund(fund)}
                       className={`p-3 flex items-center justify-between cursor-pointer transition-colors ${
-                        isSelected ? 'bg-slate-800/80 text-brand-300' : 'hover:bg-slate-800 text-slate-200'
+                        isSelected 
+                          ? 'bg-amber-50 dark:bg-snazzy-navy/60 text-snazzy-navy dark:text-snazzy-gold' 
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-200'
                       }`}
                     >
                       <div className="min-w-0 pr-3">
-                        <div className="font-semibold text-xs text-white truncate">{fund.displayName}</div>
-                        <div className="text-[10px] text-slate-400 flex items-center gap-2 mt-0.5 flex-wrap">
-                          <span className="text-brand-300 font-medium">{fund.category}</span>
+                        <div className="font-semibold text-xs text-slate-900 dark:text-white truncate">{fund.displayName}</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span className="text-snazzy-navy dark:text-snazzy-gold font-medium">{fund.category}</span>
                           <span>•</span>
                           <span>{fund.amcName}</span>
                           {navValue && (
                             <>
                               <span>•</span>
-                              <span className="text-emerald-400 font-mono font-medium">
+                              <span className="text-emerald-600 dark:text-emerald-400 font-mono font-medium">
                                 NAV: ₹{Number(navValue).toFixed(2)}
                               </span>
                             </>
                           )}
                         </div>
                       </div>
-                      <span className={`px-2 py-1 rounded text-[10px] font-semibold whitespace-nowrap shrink-0 ${isSelected ? 'bg-brand-500/20 text-brand-300' : 'bg-slate-700 hover:bg-brand-600 hover:text-white text-slate-300 transition-colors'}`}>
+                      <span className={`px-2 py-1 rounded text-[10px] font-semibold whitespace-nowrap shrink-0 ${
+                        isSelected 
+                          ? 'bg-snazzy-gold/20 text-snazzy-navy dark:text-snazzy-gold' 
+                          : 'bg-slate-100 dark:bg-slate-800 hover:bg-snazzy-navy hover:text-white dark:hover:bg-snazzy-gold dark:hover:text-snazzy-navy text-slate-700 dark:text-slate-300 transition-colors'
+                      }`}>
                         {isSelected ? 'Added' : '+ Add'}
                       </span>
                     </div>
@@ -742,13 +750,13 @@ export const SipCalculator = ({
             )}
 
             {isSearchOpen && isSearchingApi && searchResults.length === 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1.5 z-30 glass-card rounded-xl border border-slate-700 p-4 text-center text-xs text-slate-400 shadow-2xl">
+              <div className="absolute left-0 right-0 top-full mt-1.5 z-30 bg-white dark:bg-[#0B1936] rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-center text-xs text-slate-500 dark:text-slate-400 shadow-xl">
                 Searching mutual funds across Indian market...
               </div>
             )}
 
             {isSearchOpen && !isSearchingApi && searchQuery.trim().length >= 2 && searchResults.length === 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1.5 z-30 glass-card rounded-xl border border-slate-700 p-4 text-center text-xs text-slate-400 shadow-2xl">
+              <div className="absolute left-0 right-0 top-full mt-1.5 z-30 bg-white dark:bg-[#0B1936] rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-center text-xs text-slate-500 dark:text-slate-400 shadow-xl">
                 No mutual funds found matching "{searchQuery}".
               </div>
             )}
@@ -765,10 +773,10 @@ export const SipCalculator = ({
                     key={preset.id}
                     onClick={() => handleAddFund(preset)}
                     disabled={isSelected}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
                       isSelected
-                        ? 'bg-slate-800/60 text-slate-500 border border-slate-800 cursor-default'
-                        : 'bg-slate-800/90 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700/80'
+                        ? 'bg-slate-100 dark:bg-slate-900 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-800 cursor-default'
+                        : 'bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'
                     }`}
                   >
                     <Plus className="h-3 w-3" />
@@ -779,7 +787,7 @@ export const SipCalculator = ({
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[11px] text-amber-500/80 font-semibold">NSE Benchmarks:</span>
+              <span className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold">NSE Benchmarks:</span>
               {(showAllBenchmarks ? NSE_INDICES : NSE_INDICES.slice(0, 8)).map(idx => {
                 const isSelected = selectedFundIds.includes(idx.id);
                 return (
@@ -793,10 +801,10 @@ export const SipCalculator = ({
                       isNseIndex: true
                     })}
                     disabled={isSelected}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
                       isSelected
-                        ? 'bg-amber-500/10 text-amber-500/40 border border-amber-500/20 cursor-default'
-                        : 'bg-amber-500/15 text-amber-300 hover:text-white hover:bg-amber-500/30 border border-amber-500/30 shadow-sm'
+                        ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-400 dark:text-amber-500/40 border border-amber-200 dark:border-amber-500/20 cursor-default'
+                        : 'bg-amber-50 dark:bg-amber-500/15 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-500/30 border border-amber-200 dark:border-amber-500/30'
                     }`}
                   >
                     <Plus className="h-3 w-3" />
@@ -807,7 +815,7 @@ export const SipCalculator = ({
               {NSE_INDICES.length > 8 && (
                 <button
                   onClick={() => setShowAllBenchmarks(!showAllBenchmarks)}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-amber-400 bg-slate-900 border border-amber-500/30 hover:bg-amber-500/20 transition-all shadow-sm"
+                  className="px-2.5 py-1 rounded-md text-[11px] font-bold text-amber-800 dark:text-amber-400 bg-amber-50 dark:bg-slate-900 border border-amber-200 dark:border-amber-500/30 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-all"
                 >
                   {showAllBenchmarks ? 'Show Less' : `+${NSE_INDICES.length - 8} More Benchmarks`}
                 </button>
@@ -817,16 +825,16 @@ export const SipCalculator = ({
         </div>
 
         {/* Selected Custom Funds Tags */}
-        <div className="pt-2 border-t border-slate-800/80 space-y-2">
+        <div className="pt-2 border-t border-slate-200 dark:border-slate-800/80 space-y-2">
           <div className="flex items-center justify-between text-xs flex-wrap gap-2">
-            <span className="font-semibold text-slate-400 flex items-center gap-2">
-              <span>Custom Funds for SIP Analysis: <strong className="text-white">{selectedFundIds.length}</strong> Selected</span>
-              <span className="text-[10px] text-slate-500 hidden sm:inline">• Check/uncheck to select/deselect for export</span>
+            <span className="font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-2">
+              <span>Custom Funds for SIP Analysis: <strong className="text-slate-900 dark:text-white">{selectedFundIds.length}</strong> Selected</span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 hidden sm:inline">• Check/uncheck to select/deselect for export</span>
             </span>
             <button
               type="button"
               onClick={() => setViewTab('custom')}
-              className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors"
+              className="text-[11px] font-semibold text-snazzy-navy dark:text-snazzy-gold hover:underline flex items-center gap-1 transition-colors"
             >
               <span>View in Custom Fund List Table</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -834,7 +842,7 @@ export const SipCalculator = ({
           </div>
 
           {selectedFundIds.length === 0 ? (
-            <div className="p-4 rounded-xl border border-dashed border-slate-800 text-center text-xs text-slate-500">
+            <div className="p-4 rounded-lg border border-dashed border-slate-300 dark:border-slate-800 text-center text-xs text-slate-500">
               No mutual funds selected. Search above or click a popular preset to calculate SIP returns.
             </div>
           ) : (
@@ -846,10 +854,10 @@ export const SipCalculator = ({
                   <div
                     key={id}
                     onClick={() => handleToggleExportFund(id)}
-                    className={`inline-flex items-center gap-2 pl-2.5 pr-2 py-1.5 rounded-xl border text-xs cursor-pointer select-none transition-all ${
+                    className={`inline-flex items-center gap-2 pl-2.5 pr-2 py-1.5 rounded-lg border text-xs cursor-pointer select-none transition-all ${
                       isChecked
-                        ? 'bg-slate-900 border-emerald-500/50 text-white shadow-sm ring-1 ring-emerald-500/20'
-                        : 'bg-slate-950/60 border-slate-800 text-slate-400 opacity-60'
+                        ? 'bg-slate-50 dark:bg-slate-900 border-snazzy-gold/70 dark:border-snazzy-gold/50 text-slate-900 dark:text-white shadow-sm ring-1 ring-snazzy-gold/20'
+                        : 'bg-white dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-500 opacity-60'
                     }`}
                     title={isChecked ? 'Checked for Excel export (click to deselect)' : 'Unchecked for Excel export (click to select)'}
                   >
@@ -858,11 +866,11 @@ export const SipCalculator = ({
                       checked={isChecked}
                       onChange={() => handleToggleExportFund(id)}
                       onClick={(e) => e.stopPropagation()}
-                      className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-800 text-emerald-500 focus:ring-emerald-400 cursor-pointer accent-emerald-500"
+                      className="w-3.5 h-3.5 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-snazzy-navy dark:text-snazzy-gold focus:ring-snazzy-gold cursor-pointer accent-snazzy-gold"
                     />
-                    <span className="font-semibold text-white">{scheme.displayName}</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{scheme.displayName}</span>
                     {scheme.category && (
-                      <span className="px-1.5 py-0.5 rounded text-[9px] bg-slate-800 text-brand-300 font-medium">
+                      <span className="px-1.5 py-0.5 rounded text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-snazzy-gold font-medium">
                         {scheme.category}
                       </span>
                     )}
@@ -872,7 +880,7 @@ export const SipCalculator = ({
                         e.stopPropagation();
                         handleRemoveFund(id);
                       }}
-                      className="p-1 rounded-md text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors ml-0.5"
+                      className="p-1 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors ml-0.5"
                       title="Remove fund permanently"
                     >
                       <Trash2 className="h-3 w-3" />
@@ -885,15 +893,15 @@ export const SipCalculator = ({
         </div>
 
         {/* Input Controls Row: Monthly SIP, Calculation Date, SIP Day, Plan, Calculate Button */}
-        <div className="pt-3 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+        <div className="pt-3 border-t border-slate-200 dark:border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
           
           {/* Monthly SIP Input */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
               <span className="flex items-center gap-1">
-                <DollarSign className="h-3.5 w-3.5 text-brand-400" /> Monthly SIP
+                <DollarSign className="h-3.5 w-3.5 text-snazzy-gold" /> Monthly SIP
               </span>
-              <span className="text-[10px] text-slate-500">Editable</span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500">Editable</span>
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">₹</span>
@@ -903,7 +911,7 @@ export const SipCalculator = ({
                 step="500"
                 value={monthlySip}
                 onChange={(e) => setMonthlySip(Math.max(100, Number(e.target.value)))}
-                className="w-full pl-8 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-brand-500 font-mono shadow-inner"
+                className="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-snazzy-navy dark:focus:ring-snazzy-gold font-mono"
               />
             </div>
             {/* Quick SIP Chips */}
@@ -914,7 +922,9 @@ export const SipCalculator = ({
                   type="button"
                   onClick={() => setMonthlySip(amt)}
                   className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-all ${
-                    monthlySip === amt ? 'bg-brand-600 text-white shadow-sm' : 'bg-slate-800 text-slate-400 hover:text-white'
+                    monthlySip === amt 
+                      ? 'bg-snazzy-navy dark:bg-snazzy-gold text-white dark:text-snazzy-navy shadow-sm' 
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   {amt >= 100000 ? `₹${amt / 100000} Lakh` : `₹${amt / 1000}k`}
@@ -926,14 +936,14 @@ export const SipCalculator = ({
           {/* Calculation Date Picker with visible Day of Week */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-300 flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5 text-amber-400" /> Calculation Date
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5 text-amber-500" /> Calculation Date
               </label>
               {calculationDate !== new Date().toISOString().split('T')[0] && (
                 <button
                   type="button"
                   onClick={() => setCalculationDate(new Date().toISOString().split('T')[0])}
-                  className="text-[10px] text-brand-400 hover:underline font-bold"
+                  className="text-[10px] text-snazzy-navy dark:text-snazzy-gold hover:underline font-bold"
                   title="Reset date to today"
                 >
                   Reset to Today
@@ -944,15 +954,15 @@ export const SipCalculator = ({
               type="date"
               value={calculationDate}
               onChange={(e) => setCalculationDate(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-medium text-white focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-inner"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-snazzy-navy dark:focus:ring-snazzy-gold"
             />
             {/* Day of Week Indicator */}
             <div className="flex items-center gap-1.5 text-[10px] pt-0.5">
-              <span className="px-1.5 py-0.5 rounded bg-slate-800 text-brand-300 font-bold border border-slate-700">
+              <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-snazzy-gold font-bold border border-slate-200 dark:border-slate-700">
                 {getDayOfWeekInfo(calculationDate).dayName || 'Day'}
               </span>
               {getDayOfWeekInfo(calculationDate).isWeekend ? (
-                <span className="text-amber-400 font-medium">Weekend (shifts to trading day)</span>
+                <span className="text-amber-600 dark:text-amber-400 font-medium">Weekend (shifts to trading day)</span>
               ) : (
                 <span className="text-slate-500">Trading Day</span>
               )}
@@ -962,10 +972,10 @@ export const SipCalculator = ({
           {/* Monthly SIP Installment Day (Supports any day 1 to 31) */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-300 flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5 text-indigo-400" /> SIP Day of Month
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5 text-snazzy-navy dark:text-snazzy-gold" /> SIP Day of Month
               </label>
-              <span className="text-[10px] font-bold text-brand-400">
+              <span className="text-[10px] font-bold text-snazzy-navy dark:text-snazzy-gold">
                 Day {sipDay}
               </span>
             </div>
@@ -974,7 +984,7 @@ export const SipCalculator = ({
               <select
                 value={sipDay}
                 onChange={(e) => setSipDay(Math.min(31, Math.max(1, parseInt(e.target.value, 10))))}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-inner"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-snazzy-navy dark:focus:ring-snazzy-gold"
               >
                 {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                   <option key={d} value={d}>
@@ -984,25 +994,25 @@ export const SipCalculator = ({
               </select>
             </div>
             
-            <p className="text-[10px] text-slate-400">
-              NAV taken on every <strong className="text-brand-300 font-semibold">{getOrdinalSuffix(sipDay)}</strong> (shifts if holiday)
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              NAV taken on every <strong className="text-slate-800 dark:text-snazzy-gold font-semibold">{getOrdinalSuffix(sipDay)}</strong> (shifts if holiday)
             </p>
           </div>
 
           {/* Plan Selector (Regular / Direct / Both) */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-300 flex items-center gap-1">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
               Plan Option
             </label>
-            <div className="flex items-center p-1 bg-slate-900 rounded-xl border border-slate-700">
+            <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
               <button
                 type="button"
                 onClick={() => {
                   setPlan('regular');
                   if (onSelectPlan) onSelectPlan('regular');
                 }}
-                className={`flex-1 py-1 text-xs font-bold rounded-lg transition-all ${
-                  plan === 'regular' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                className={`flex-1 py-1 text-xs font-semibold rounded transition-all ${
+                  plan === 'regular' ? 'bg-snazzy-navy dark:bg-snazzy-gold text-white dark:text-snazzy-navy shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 Regular
@@ -1013,8 +1023,8 @@ export const SipCalculator = ({
                   setPlan('direct');
                   if (onSelectPlan) onSelectPlan('direct');
                 }}
-                className={`flex-1 py-1 text-xs font-bold rounded-lg transition-all ${
-                  plan === 'direct' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                className={`flex-1 py-1 text-xs font-semibold rounded transition-all ${
+                  plan === 'direct' ? 'bg-snazzy-navy dark:bg-snazzy-gold text-white dark:text-snazzy-navy shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 Direct
@@ -1025,14 +1035,14 @@ export const SipCalculator = ({
                   setPlan('both');
                   if (onSelectPlan) onSelectPlan('both');
                 }}
-                className={`flex-1 py-1 text-xs font-bold rounded-lg transition-all ${
-                  plan === 'both' ? 'bg-gradient-to-r from-indigo-600 to-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                className={`flex-1 py-1 text-xs font-semibold rounded transition-all ${
+                  plan === 'both' ? 'bg-snazzy-navy dark:bg-snazzy-gold text-white dark:text-snazzy-navy shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 Both
               </button>
             </div>
-            <p className="text-[10px] text-slate-500">{plan === 'both' ? 'Calculates both Regular & Direct' : 'Direct has lower expense ratio'}</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500">{plan === 'both' ? 'Calculates both Regular & Direct' : 'Direct has lower expense ratio'}</p>
           </div>
 
           {/* Calculate Button */}
@@ -1040,11 +1050,11 @@ export const SipCalculator = ({
             <button
               onClick={() => handleCalculate(selectedFundIds, monthlySip, calculationDate, sipDay, plan)}
               disabled={isCalculating || selectedFundIds.length === 0}
-              className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-brand-500/30 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#891228] hover:bg-[#700E20] text-white dark:bg-[#A82038] dark:hover:bg-[#891228] font-bold text-xs shadow-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isCalculating ? (
                 <>
-                  <RefreshCw className="h-4 w-4 animate-spin text-white" />
+                  <RefreshCw className="h-4 w-4 animate-spin" />
                   <span>Computing XIRR...</span>
                 </>
               ) : (
@@ -1070,44 +1080,44 @@ export const SipCalculator = ({
 
       {/* Results Section */}
       {isCalculating ? (
-        <div className="glass-card rounded-2xl border border-slate-800 p-16 text-center text-slate-400 space-y-3">
-          <RefreshCw className="h-8 w-8 text-brand-400 animate-spin mx-auto" />
-          <p className="text-xs font-semibold text-slate-200">Retrieving historical NAV & index time series and computing XIRR cash flows...</p>
+        <div className="bg-white dark:bg-[#0B1936] rounded-xl border border-slate-200 dark:border-slate-800 p-16 text-center text-slate-500 dark:text-slate-400 space-y-3 shadow-sm">
+          <div className="snazzy-spinner mx-auto"></div>
+          <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">Retrieving historical NAV & index time series and computing XIRR cash flows...</p>
         </div>
       ) : results.length === 0 ? (
-        <div className="glass-card rounded-2xl border border-slate-800 p-12 text-center text-slate-400 space-y-3">
-          <Sparkles className="h-10 w-10 text-slate-600 mx-auto" />
-          <h4 className="text-sm font-bold text-slate-300">Ready to Calculate SIP Returns</h4>
-          <p className="text-xs text-slate-400 max-w-md mx-auto">
-            Select one or more mutual funds and click <strong className="text-brand-400">Calculate Returns</strong> to compute 1Y, 2Y, 3Y, 5Y, and 10Y SIP annualized returns.
+        <div className="bg-white dark:bg-[#0B1936] rounded-xl border border-slate-200 dark:border-slate-800 p-12 text-center text-slate-500 dark:text-slate-400 space-y-3 shadow-sm">
+          <Sparkles className="h-10 w-10 text-slate-400 dark:text-slate-600 mx-auto" />
+          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-300">Ready to Calculate SIP Returns</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+            Select one or more mutual funds and click <strong className="text-snazzy-navy dark:text-snazzy-gold">Calculate Returns</strong> to compute 1Y, 2Y, 3Y, 5Y, and 10Y SIP annualized returns.
           </p>
         </div>
       ) : (
         <div className="space-y-8">
 
           {/* TABLE 1: MUTUAL FUNDS SIP PERFORMANCE */}
-          <div className="glass-card rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+          <div className="bg-white dark:bg-[#0B1936] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
             {/* Table Top Bar */}
-            <div className="px-5 py-3.5 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between flex-wrap gap-3">
+            <div className="px-5 py-3.5 bg-slate-50/80 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-3">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider font-sans">
                       Mutual Fund SIP Performance Results
                     </h3>
-                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-brand-500/20 text-brand-300 border border-brand-500/40">
+                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                       {mutualFundResults.length} Schemes
                     </span>
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
                       ({mutualFundResults.filter(r => checkedExportIds.has(r.fundId)).length} selected for export)
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 text-xs text-slate-400">
-                <span>Showing: <strong className="text-white font-mono">₹{Number(monthlySip).toLocaleString('en-IN')}/mo</strong></span>
+              <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                <span>Showing: <strong className="text-slate-800 dark:text-white font-mono">₹{Number(monthlySip).toLocaleString('en-IN')}/mo</strong></span>
                 <span>•</span>
                 <span>Click any scheme to inspect detailed monthly ledger</span>
               </div>
@@ -1121,7 +1131,7 @@ export const SipCalculator = ({
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-950/70 text-slate-400 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-800">
+                  <thead className="bg-slate-100/70 dark:bg-slate-950/70 text-slate-600 dark:text-slate-400 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-800">
                     <tr>
                       {/* Select All Checkbox */}
                       <th className="p-3 pl-4 w-12 text-center">
@@ -1130,13 +1140,13 @@ export const SipCalculator = ({
                           checked={mutualFundResults.length > 0 && mutualFundResults.every(f => checkedExportIds.has(f.fundId))}
                           onChange={() => handleToggleSelectAllFunds(mutualFundResults)}
                           title="Select/Deselect all Mutual Funds for Excel export"
-                          className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-brand-600 focus:ring-brand-500 cursor-pointer accent-brand-500"
+                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-snazzy-navy dark:text-snazzy-gold focus:ring-snazzy-gold cursor-pointer accent-snazzy-navy dark:accent-snazzy-gold"
                         />
                       </th>
 
                       <th 
                         onClick={() => handleSort('displayName')}
-                        className="p-3 min-w-[240px] cursor-pointer hover:text-white transition-colors"
+                        className="p-3 min-w-[240px] cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>Scheme Name</span>
@@ -1148,7 +1158,7 @@ export const SipCalculator = ({
 
                       <th 
                         onClick={() => handleSort('return1Yr')}
-                        className="p-3 min-w-[100px] cursor-pointer hover:text-white transition-colors"
+                        className="p-3 min-w-[100px] cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>1Y SIP</span>
@@ -1158,7 +1168,7 @@ export const SipCalculator = ({
 
                       <th 
                         onClick={() => handleSort('return2Yr')}
-                        className="p-3 min-w-[100px] cursor-pointer hover:text-white transition-colors"
+                        className="p-3 min-w-[100px] cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>2Y SIP</span>
@@ -1168,7 +1178,7 @@ export const SipCalculator = ({
 
                       <th 
                         onClick={() => handleSort('return3Yr')}
-                        className="p-3 min-w-[100px] cursor-pointer hover:text-white transition-colors"
+                        className="p-3 min-w-[100px] cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>3Y SIP</span>
@@ -1178,7 +1188,7 @@ export const SipCalculator = ({
 
                       <th 
                         onClick={() => handleSort('return5Yr')}
-                        className="p-3 min-w-[100px] cursor-pointer hover:text-white transition-colors"
+                        className="p-3 min-w-[100px] cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>5Y SIP</span>
@@ -1188,7 +1198,7 @@ export const SipCalculator = ({
 
                       <th 
                         onClick={() => handleSort('return10Yr')}
-                        className="p-3 min-w-[100px] cursor-pointer hover:text-white transition-colors"
+                        className="p-3 min-w-[100px] cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>10Y SIP</span>
@@ -1198,7 +1208,7 @@ export const SipCalculator = ({
 
                       <th 
                         onClick={() => handleSort('invested3Y')}
-                        className="p-3 min-w-[120px] cursor-pointer hover:text-white transition-colors"
+                        className="p-3 min-w-[120px] cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>3Y Invested</span>
@@ -1208,7 +1218,7 @@ export const SipCalculator = ({
 
                       <th 
                         onClick={() => handleSort('units3Y')}
-                        className="p-3 min-w-[110px] cursor-pointer hover:text-white transition-colors"
+                        className="p-3 min-w-[110px] cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>Total Units (3Y)</span>
@@ -1218,7 +1228,7 @@ export const SipCalculator = ({
 
                       <th 
                         onClick={() => handleSort('value3Y')}
-                        className="p-3 min-w-[125px] cursor-pointer hover:text-white transition-colors"
+                        className="p-3 min-w-[125px] cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>3Y Portfolio Value</span>
@@ -1230,7 +1240,7 @@ export const SipCalculator = ({
                     </tr>
                   </thead>
 
-                  <tbody className="divide-y divide-slate-800/60 font-sans">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-sans">
                     {mutualFundResults.map((fund) => {
                       const isChecked = checkedExportIds.has(fund.fundId);
                       const p3 = fund.periods?.['3Y'];
@@ -1257,8 +1267,8 @@ export const SipCalculator = ({
                         <tr
                           key={fund.fundId}
                           onClick={() => setActiveDetailFund(fund)}
-                          className={`hover:bg-slate-800/40 transition-colors cursor-pointer group ${
-                            !isChecked ? 'opacity-60 bg-slate-950/40' : ''
+                          className={`hover:bg-slate-50 dark:hover:bg-slate-850/60 transition-colors cursor-pointer group ${
+                            !isChecked ? 'opacity-60 bg-slate-50/50 dark:bg-slate-950/40' : ''
                           }`}
                         >
                           {/* Export Checkbox */}
@@ -1268,30 +1278,30 @@ export const SipCalculator = ({
                               checked={isChecked}
                               onChange={() => handleToggleExportFund(fund.fundId)}
                               title="Include in Excel export"
-                              className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-brand-600 focus:ring-brand-500 cursor-pointer accent-brand-500"
+                              className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-snazzy-navy dark:text-snazzy-gold focus:ring-snazzy-gold cursor-pointer accent-snazzy-navy dark:accent-snazzy-gold"
                             />
                           </td>
 
                           {/* Name */}
                           <td className="p-3">
-                            <div className="font-bold text-white group-hover:text-brand-300 transition-colors">
+                            <div className="font-bold text-slate-900 dark:text-white group-hover:text-snazzy-navy dark:group-hover:text-snazzy-gold transition-colors">
                               {fund.displayName}
                             </div>
-                            <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-2">
-                              <span className="text-brand-400 font-semibold">{fund.category}</span>
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-2">
+                              <span className="text-slate-600 dark:text-snazzy-gold font-medium">{fund.category}</span>
                               <span>•</span>
                               <span>{fund.amcName}</span>
                               {fund.plan && (
                                 <>
                                   <span>•</span>
-                                  <span className="text-indigo-400 font-medium">{fund.plan}</span>
+                                  <span className="text-indigo-600 dark:text-indigo-400 font-medium">{fund.plan}</span>
                                 </>
                               )}
                             </div>
                           </td>
 
                           {/* Current NAV */}
-                          <td className="p-3 font-mono text-[11px] text-slate-200">
+                          <td className="p-3 font-mono text-[11px] text-slate-800 dark:text-slate-200">
                             ₹{fund.currentNav ? Number(fund.currentNav).toFixed(2) : 'N/A'}
                           </td>
 
@@ -1321,17 +1331,17 @@ export const SipCalculator = ({
                           </td>
 
                           {/* 3Y Total Invested */}
-                          <td className="p-3 font-mono text-[11px] text-slate-300">
+                          <td className="p-3 font-mono text-[11px] text-slate-700 dark:text-slate-300">
                             {investedDisplay}
                           </td>
 
                           {/* 3Y Total Units */}
-                          <td className="p-3 font-mono text-[11px] text-indigo-300 font-semibold">
+                          <td className="p-3 font-mono text-[11px] text-indigo-700 dark:text-indigo-300 font-semibold">
                             {unitsDisplay}
                           </td>
 
                           {/* 3Y Final Value */}
-                          <td className="p-3 font-mono text-[11px] font-bold text-emerald-400">
+                          <td className="p-3 font-mono text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
                             {valDisplay}
                           </td>
 
@@ -1343,7 +1353,7 @@ export const SipCalculator = ({
                                   e.stopPropagation();
                                   setActiveDetailFund(fund);
                                 }}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-500/10 hover:bg-brand-500 text-brand-300 hover:text-white transition-all text-[11px] font-semibold"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-100 hover:bg-snazzy-navy hover:text-white dark:bg-slate-800 dark:hover:bg-snazzy-gold dark:hover:text-snazzy-navy text-slate-700 dark:text-slate-300 transition-all text-[11px] font-medium"
                                 title="View detailed monthly cash flows and ledger"
                               >
                                 <Eye className="h-3 w-3" />
@@ -1355,7 +1365,7 @@ export const SipCalculator = ({
                                   e.stopPropagation();
                                   handleRemoveFund(fund.fundId);
                                 }}
-                                className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                                className="p-1 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all"
                                 title="Remove fund from calculation"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -1372,32 +1382,32 @@ export const SipCalculator = ({
           </div>
 
           {/* TABLE 2: SEPARATE NSE BENCHMARK INDICES SIP SECTION */}
-          <div className="glass-card rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+          <div className="bg-white dark:bg-[#0B1936] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
             {/* Table Top Bar */}
-            <div className="px-5 py-3.5 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between flex-wrap gap-3">
+            <div className="px-5 py-3.5 bg-amber-50/60 dark:bg-slate-900/90 border-b border-amber-200/60 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand-600 to-emerald-500 flex items-center justify-center text-white shadow-md">
+                <div className="w-8 h-8 rounded-lg bg-snazzy-navy text-snazzy-gold dark:bg-snazzy-gold dark:text-snazzy-navy flex items-center justify-center shadow-sm">
                   <TrendingUp className="w-4 h-4" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider font-sans">
                       NSE Benchmark Indices — SIP Return Performance
                     </h3>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30">
                       Official Benchmark
                     </span>
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
                       ({nseIndexResults.filter(r => checkedExportIds.has(r.fundId)).length} of {nseIndexResults.length} selected for export)
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                     Monthly SIP units acquired using index closing value as NAV on the {getOrdinalSuffix(sipDay)} of each month
                   </p>
                 </div>
               </div>
 
-              <div className="text-xs text-slate-400 font-medium">
+              <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                 Standard formula: units = ₹{Number(monthlySip).toLocaleString('en-IN')} / Index Value
               </div>
             </div>
@@ -1405,7 +1415,7 @@ export const SipCalculator = ({
             {/* NSE Table */}
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">
-                <thead className="bg-slate-950/70 text-slate-400 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-800">
+                <thead className="bg-slate-100/70 dark:bg-slate-950/70 text-slate-600 dark:text-slate-400 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-800">
                   <tr>
                     {/* Select All Checkbox */}
                     <th className="p-3 pl-4 w-12 text-center">
@@ -1414,13 +1424,13 @@ export const SipCalculator = ({
                         checked={nseIndexResults.length > 0 && nseIndexResults.every(f => checkedExportIds.has(f.fundId))}
                         onChange={() => handleToggleSelectAllFunds(nseIndexResults)}
                         title="Select/Deselect all NSE indices for Excel export"
-                        className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-brand-600 focus:ring-brand-500 cursor-pointer accent-brand-500"
+                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-snazzy-navy dark:text-snazzy-gold focus:ring-snazzy-gold cursor-pointer accent-snazzy-navy dark:accent-snazzy-gold"
                       />
                     </th>
 
                     <th 
                       onClick={() => handleSort('displayName')}
-                      className="p-3 min-w-[240px] cursor-pointer hover:text-white transition-colors"
+                      className="p-3 min-w-[240px] cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
                     >
                       <div className="flex items-center gap-1.5">
                         <span>Benchmark Index</span>
@@ -1432,7 +1442,7 @@ export const SipCalculator = ({
 
                     <th 
                       onClick={() => handleSort('return1Yr')}
-                      className="p-3 min-w-[100px] cursor-pointer hover:text-white transition-colors"
+                      className="p-3 min-w-[100px] cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
                     >
                       <div className="flex items-center gap-1.5">
                         <span>1Y SIP</span>
@@ -1442,7 +1452,7 @@ export const SipCalculator = ({
 
                     <th 
                       onClick={() => handleSort('return2Yr')}
-                      className="p-3 min-w-[100px] cursor-pointer hover:text-white transition-colors"
+                      className="p-3 min-w-[100px] cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
                     >
                       <div className="flex items-center gap-1.5">
                         <span>2Y SIP</span>
@@ -1452,7 +1462,7 @@ export const SipCalculator = ({
 
                     <th 
                       onClick={() => handleSort('return3Yr')}
-                      className="p-3 min-w-[100px] cursor-pointer hover:text-white transition-colors"
+                      className="p-3 min-w-[100px] cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
                     >
                       <div className="flex items-center gap-1.5">
                         <span>3Y SIP</span>
@@ -1462,7 +1472,7 @@ export const SipCalculator = ({
 
                     <th 
                       onClick={() => handleSort('return5Yr')}
-                      className="p-3 min-w-[100px] cursor-pointer hover:text-white transition-colors"
+                      className="p-3 min-w-[100px] cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
                     >
                       <div className="flex items-center gap-1.5">
                         <span>5Y SIP</span>
@@ -1472,7 +1482,7 @@ export const SipCalculator = ({
 
                     <th 
                       onClick={() => handleSort('return10Yr')}
-                      className="p-3 min-w-[100px] cursor-pointer hover:text-white transition-colors"
+                      className="p-3 min-w-[100px] cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
                     >
                       <div className="flex items-center gap-1.5">
                         <span>10Y SIP</span>
@@ -1482,7 +1492,7 @@ export const SipCalculator = ({
 
                     <th 
                       onClick={() => handleSort('invested3Y')}
-                      className="p-3 min-w-[120px] cursor-pointer hover:text-white transition-colors"
+                      className="p-3 min-w-[120px] cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
                     >
                       <div className="flex items-center gap-1.5">
                         <span>3Y Invested</span>
@@ -1492,7 +1502,7 @@ export const SipCalculator = ({
 
                     <th 
                       onClick={() => handleSort('units3Y')}
-                      className="p-3 min-w-[110px] cursor-pointer hover:text-white transition-colors"
+                      className="p-3 min-w-[110px] cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
                     >
                       <div className="flex items-center gap-1.5">
                         <span>Total Units (3Y)</span>
@@ -1502,7 +1512,7 @@ export const SipCalculator = ({
 
                     <th 
                       onClick={() => handleSort('value3Y')}
-                      className="p-3 min-w-[125px] cursor-pointer hover:text-white transition-colors"
+                      className="p-3 min-w-[125px] cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
                     >
                       <div className="flex items-center gap-1.5">
                         <span>3Y Portfolio Value</span>
@@ -1514,7 +1524,7 @@ export const SipCalculator = ({
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-slate-800/60 font-sans">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-sans">
                   {nseIndexResults.map((fund) => {
                     const isChecked = checkedExportIds.has(fund.fundId);
                     const p3 = fund.periods?.['3Y'];
@@ -1541,8 +1551,8 @@ export const SipCalculator = ({
                       <tr
                         key={fund.fundId}
                         onClick={() => setActiveDetailFund(fund)}
-                        className={`hover:bg-slate-800/40 transition-colors cursor-pointer group ${
-                          !isChecked ? 'opacity-60 bg-slate-950/40' : ''
+                        className={`hover:bg-amber-50/40 dark:hover:bg-slate-850/60 transition-colors cursor-pointer group ${
+                          !isChecked ? 'opacity-60 bg-slate-50/50 dark:bg-slate-950/40' : ''
                         }`}
                       >
                         {/* Export Checkbox */}
@@ -1552,27 +1562,27 @@ export const SipCalculator = ({
                             checked={isChecked}
                             onChange={() => handleToggleExportFund(fund.fundId)}
                             title="Include in Excel export"
-                            className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-brand-600 focus:ring-brand-500 cursor-pointer accent-brand-500"
+                            className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-snazzy-navy dark:text-snazzy-gold focus:ring-snazzy-gold cursor-pointer accent-snazzy-navy dark:accent-snazzy-gold"
                           />
                         </td>
 
                         {/* Name */}
                         <td className="p-3">
-                          <div className="font-bold text-white group-hover:text-brand-300 transition-colors flex items-center gap-2 flex-wrap">
+                          <div className="font-bold text-slate-900 dark:text-white group-hover:text-snazzy-navy dark:group-hover:text-snazzy-gold transition-colors flex items-center gap-2 flex-wrap">
                             <span>{fund.displayName}</span>
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30">
                               NSE Benchmark
                             </span>
                           </div>
-                          <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-2">
-                            <span className="text-brand-300 font-semibold">{fund.category}</span>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-2">
+                            <span className="text-slate-600 dark:text-snazzy-gold font-medium">{fund.category}</span>
                             <span>•</span>
                             <span>NSE Indices Limited</span>
                           </div>
                         </td>
 
                         {/* Current NAV / Index Value */}
-                        <td className="p-3 font-mono text-[11px] text-white font-bold">
+                        <td className="p-3 font-mono text-[11px] text-slate-900 dark:text-white font-bold">
                           ₹{fund.currentNav ? Number(fund.currentNav).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}
                         </td>
 
@@ -1602,17 +1612,17 @@ export const SipCalculator = ({
                         </td>
 
                         {/* 3Y Total Invested */}
-                        <td className="p-3 font-mono text-[11px] text-slate-300">
+                        <td className="p-3 font-mono text-[11px] text-slate-700 dark:text-slate-300">
                           {investedDisplay}
                         </td>
 
                         {/* 3Y Total Units */}
-                        <td className="p-3 font-mono text-[11px] text-indigo-300 font-semibold">
+                        <td className="p-3 font-mono text-[11px] text-indigo-700 dark:text-indigo-300 font-semibold">
                           {unitsDisplay}
                         </td>
 
                         {/* 3Y Final Value */}
-                        <td className="p-3 font-mono text-[11px] font-bold text-emerald-400">
+                        <td className="p-3 font-mono text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
                           {valDisplay}
                         </td>
 
@@ -1623,7 +1633,7 @@ export const SipCalculator = ({
                               e.stopPropagation();
                               setActiveDetailFund(fund);
                             }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-brand-600 text-slate-300 hover:text-white border border-slate-700 transition-all text-[11px] font-semibold"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-100 hover:bg-snazzy-navy hover:text-white dark:bg-slate-800 dark:hover:bg-snazzy-gold dark:hover:text-snazzy-navy text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all text-[11px] font-medium"
                             title="View detailed monthly cash flows and ledger"
                           >
                             <Eye className="h-3 w-3" />
@@ -1644,14 +1654,14 @@ export const SipCalculator = ({
       )}
 
       {/* Footer Info Note */}
-      <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+      <div className="p-3 bg-slate-50 dark:bg-slate-950/80 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Info className="h-3.5 w-3.5 text-brand-400 shrink-0" />
+          <Info className="h-3.5 w-3.5 text-snazzy-gold shrink-0" />
           <span>
             SIP returns are calculated via XIRR from monthly debit installments (-SIP) and portfolio valuation (+Value) on the selected date. Checked funds are included in Excel exports.
           </span>
         </div>
-        <span className="text-[10px] text-slate-500 hidden sm:inline">
+        <span className="text-[10px] text-slate-400 dark:text-slate-500 hidden sm:inline">
           High precision floating point unit calculation
         </span>
       </div>

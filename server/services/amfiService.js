@@ -1776,7 +1776,12 @@ class AmfiService {
     await this.initializeMasterRegistry();
 
     const counts = {};
-    this.masterSchemes.forEach(s => {
+    const growthSchemes = this.masterSchemes.filter(s => {
+      const sOpt = s.schemeOption || determineSchemeOption(s.displayName);
+      return sOpt === 'growth';
+    });
+
+    growthSchemes.forEach(s => {
       counts[s.category] = (counts[s.category] || 0) + 1;
     });
 
@@ -1800,13 +1805,17 @@ class AmfiService {
   /**
    * Get filtered and paginated schemes with calculated returns
    */
-  async getFunds({ category = 'all', search = '', plan = 'regular', option = 'all', page = 1, limit = 50, days, customDays = '33,50,67', startDate = null, endDate = null, asOfDate = null }) {
+  async getFunds({ category = 'all', search = '', plan = 'regular', option = 'growth', page = 1, limit = 50, days, customDays = '33,50,67', startDate = null, endDate = null, asOfDate = null }) {
     await this.initializeMasterRegistry();
 
     const daysParam = days || customDays;
     const daysList = parseDaysList(daysParam);
 
-    let filtered = [...this.masterSchemes];
+    // Fund Analysis dataset contains ONLY Growth-option mutual fund schemes
+    let filtered = this.masterSchemes.filter(s => {
+      const sOpt = s.schemeOption || determineSchemeOption(s.displayName);
+      return sOpt === 'growth';
+    });
 
     // Category Filter
     if (category && category.trim().toLowerCase() !== 'all') {
@@ -1815,24 +1824,6 @@ class AmfiService {
         s.category.toLowerCase() === catLower ||
         s.category.toLowerCase().replace(/[^a-z0-9]+/g, '-') === catLower
       );
-    }
-
-    // Scheme Option Filter (all | growth | bonus | idcw)
-    if (option && option.trim().toLowerCase() !== 'all') {
-      const optLower = option.trim().toLowerCase();
-      filtered = filtered.filter(s => {
-        const sOpt = s.schemeOption || determineSchemeOption(s.displayName);
-        if (optLower === 'growth') {
-          return sOpt === 'growth';
-        }
-        if (optLower === 'bonus') {
-          return sOpt === 'bonus';
-        }
-        if (optLower === 'idcw') {
-          return sOpt === 'idcw';
-        }
-        return true;
-      });
     }
 
     // Fuzzy / Typo-tolerant Search Filter
@@ -1946,7 +1937,11 @@ class AmfiService {
 
     const matchedSchemes = ids
       .map(id => this.schemeMap.get(id))
-      .filter(Boolean);
+      .filter(Boolean)
+      .filter(s => {
+        const sOpt = s.schemeOption || determineSchemeOption(s.displayName);
+        return sOpt === 'growth';
+      });
 
     // Resolve historical AUM if asOfDate is specified
     const histAumRes = await this.resolveHistoricalAumForSchemes(asOfDate, matchedSchemes);
@@ -1985,6 +1980,7 @@ class AmfiService {
           displayName: scheme.displayName,
           amfiSchemeName: scheme.amfiSchemeName,
           category: scheme.category,
+          schemeOption: scheme.schemeOption || determineSchemeOption(scheme.displayName),
           subCategoryId: scheme.subCategoryId,
           amcName: scheme.amcName,
           benchmark,

@@ -8,18 +8,16 @@ const SummaryCards = ({ totalFundsCount = 10195 }) => {
     {
       title: 'Tracked Schemes',
       value: `${formattedTotal} Schemes`,
-      subtitle: 'All AMFI Mutual Funds Covered',
+      subtitle: 'Official AMFI Mutual Funds Universe',
       icon: ShieldCheck,
-      color: 'from-blue-500/20 to-indigo-500/20 border-blue-500/30 text-blue-400',
-      iconBg: 'bg-blue-500/20 text-blue-400'
+      iconBg: 'bg-[#061C41]/10 text-[#061C41] dark:bg-[#061C41]/40 dark:text-blue-300 ring-1 ring-[#061C41]/15 dark:ring-blue-400/20'
     },
     {
       title: 'Mutual Fund Categories',
       value: 'All Categories',
-      subtitle: 'Large, Mid, Small, Multi, Flexi & more',
+      subtitle: 'Large, Mid, Small, Multi, Flexi & Sectoral',
       icon: Layers,
-      color: 'from-purple-500/20 to-pink-500/20 border-purple-500/30 text-purple-400',
-      iconBg: 'bg-purple-500/20 text-purple-400'
+      iconBg: 'bg-[#CD9B30]/15 text-[#CD9B30] dark:bg-[#CD9B30]/25 dark:text-amber-400 ring-1 ring-[#CD9B30]/30'
     }
   ];
 
@@ -30,22 +28,22 @@ const SummaryCards = ({ totalFundsCount = 10195 }) => {
         return (
           <div 
             key={idx} 
-            className={`glass-card p-4 rounded-xl border bg-gradient-to-br ${card.color} transition-all duration-300 hover:scale-[1.02] shadow-sm flex flex-col justify-between`}
+            className="bg-white dark:bg-[#0B1936] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all duration-200 hover:shadow-md flex flex-col justify-between"
           >
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   {card.title}
                 </p>
-                <h3 className="text-2xl font-extrabold text-white mt-1 tracking-tight">
+                <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1.5 tracking-tight font-serif sm:font-sans">
                   {card.value}
                 </h3>
               </div>
-              <div className={`p-2.5 rounded-lg ${card.iconBg}`}>
+              <div className={`p-3 rounded-xl ${card.iconBg}`}>
                 <IconComponent className="h-5 w-5" />
               </div>
             </div>
-            <p className="text-xs text-slate-400 mt-3 font-medium">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 font-medium">
               {card.subtitle}
             </p>
           </div>

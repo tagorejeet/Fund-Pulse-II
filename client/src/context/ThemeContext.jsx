@@ -2,14 +2,22 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 
 const ThemeContext = createContext();
 
+const STORAGE_KEY = 'snazzy_fundlens_theme';
+const LEGACY_STORAGE_KEY = 'fundpulse_theme';
+
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem('fundpulse_theme');
-    return saved ? saved : 'dark';
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch (e) {}
+    // Strict requirement: Default MUST be light mode for first-time users
+    return 'light';
   });
 
   useEffect(() => {
     const root = document.documentElement;
+    root.setAttribute('data-theme', theme);
     if (theme === 'dark') {
       root.classList.add('dark');
       root.classList.remove('light');
@@ -17,7 +25,9 @@ export const ThemeProvider = ({ children }) => {
       root.classList.remove('dark');
       root.classList.add('light');
     }
-    localStorage.setItem('fundpulse_theme', theme);
+    try {
+      localStorage.setItem(STORAGE_KEY, theme);
+    } catch (e) {}
   }, [theme]);
 
   const toggleTheme = () => {

@@ -39,14 +39,14 @@ const CategoryFilter = ({ activeCategory, onSelectCategory, categoriesList = [],
               onClick={() => onSelectCategory(cat.id === 'all' ? 'all' : cat.name)}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 border ${
                 isSelected
-                  ? 'bg-brand-600 text-white border-brand-500 shadow-md shadow-brand-600/30 scale-[1.02]'
-                  : 'glass-pill text-slate-300 hover:text-white hover:bg-slate-800 border-slate-700/60'
+                  ? 'bg-[#061C41] dark:bg-[#132B55] text-white border-[#061C41] dark:border-blue-400/40 shadow-sm scale-[1.01]'
+                  : 'bg-white dark:bg-[#0B1936] text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800 shadow-sm'
               }`}
             >
               <span>{cat.name}</span>
               {count > 0 && (
                 <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                  isSelected ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
+                  isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                 }`}>
                   {count}
                 </span>
