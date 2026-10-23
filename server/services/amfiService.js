@@ -355,6 +355,9 @@ class AmfiService {
             const code = Number(codeStr);
             if (code && entry && Array.isArray(entry.navList)) {
               entry.navList.sort((a, b) => parseNavDate(b.date).getTime() - parseNavDate(a.date).getTime());
+              if (entry.isComplete || entry.navList.length >= 2000) {
+                entry.isComplete = true;
+              }
               this.navHistoryCache.set(code, entry);
               count++;
             }
@@ -1159,6 +1162,7 @@ class AmfiService {
         this.lastUpdated = new Date().toISOString();
 
         logger.info(`Master Scheme Registry successfully built! Total paired schemes: ${this.masterSchemes.length} in ${Date.now() - startTime}ms.`);
+        this.primeSuggestionSchemes();
       } catch (err) {
         logger.error('Failed to initialize master scheme registry:', err);
         // Fallback to allowlist
@@ -1188,6 +1192,34 @@ class AmfiService {
     })();
 
     return this.inFlightInitPromise;
+  }
+
+  /**
+   * Background prime full historical NAVs for curated Suggestion Sheet schemes
+   */
+  primeSuggestionSchemes() {
+    setTimeout(async () => {
+      try {
+        const codesToPrime = [];
+        MASTER_ALLOWLIST.forEach(item => {
+          if (item.regularSchemeCode && !this.navHistoryCache.get(item.regularSchemeCode)?.isComplete) {
+            codesToPrime.push(item.regularSchemeCode);
+          }
+          if (item.directSchemeCode && !this.navHistoryCache.get(item.directSchemeCode)?.isComplete) {
+            codesToPrime.push(item.directSchemeCode);
+          }
+        });
+        if (codesToPrime.length > 0) {
+          logger.info(`Priming complete historical NAVs for ${codesToPrime.length} Suggestion Sheet scheme codes in background...`);
+          await pMap(codesToPrime, async (code) => {
+            await this.fetchMfapiNavHistory(code);
+          }, 8);
+          logger.info(`Suggestion Sheet historical NAVs primed successfully!`);
+        }
+      } catch (err) {
+        logger.warn(`Background priming of suggestion schemes: ${err.message}`);
+      }
+    }, 200);
   }
 
   /**
@@ -1221,6 +1253,7 @@ class AmfiService {
 
         const text = await res.text();
         const lines = text.split('\n');
+        let matchedCount = 0;
         for (const l of lines) {
           const parts = l.split(';');
           if (parts.length >= 7 && !isNaN(Number(parts[0]))) {
@@ -1235,11 +1268,17 @@ class AmfiService {
               if (Array.isArray(sEntry.navList) && !sEntry.navList.some(r => r.date === date)) {
                 sEntry.navList.push({ date, nav });
               }
+              matchedCount++;
             }
           }
         }
-        this.completedDateWindows.add(key);
-        this.failedDateWindows.delete(key);
+        if (matchedCount > 0) {
+          this.completedDateWindows.add(key);
+          this.failedDateWindows.delete(key);
+        } else {
+          // If no records matched (e.g. portal returned an HTML page), do not mark as completed
+          this.failedDateWindows.set(key, Date.now());
+        }
       } catch (err) {
         this.failedDateWindows.set(key, Date.now());
         logger.warn(`Error querying official AMFI portal for date range ${fromStr} to ${toStr}: ${err.message}`);
@@ -1309,9 +1348,18 @@ class AmfiService {
 
           this.navHistoryCache.set(code, {
             navList: mergedList,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            isComplete: true
           });
           this.scheduleNavCacheSave();
+
+          // Invalidate stale computed returns cache for this scheme
+          for (const k of this.computedCache.keys()) {
+            if (k.startsWith(`${code}_`)) {
+              this.computedCache.delete(k);
+            }
+          }
+
           logger.info(`Successfully fetched and cached ${mergedList.length} historical NAV records for scheme ${code} via MFAPI fallback.`);
           return mergedList;
         }
@@ -1356,21 +1404,10 @@ class AmfiService {
     }
 
     const missingTargets = targetDates.filter(tDate => {
-      const sDate = new Date(tDate);
-      sDate.setDate(sDate.getDate() - 10);
-      const fromStr = formatAmfiDate(sDate);
-      const toStr = formatAmfiDate(tDate);
-      const windowKey = `${fromStr}_${toStr}`;
-
-      // If this date window has already been downloaded and ingested across India,
-      // and this scheme was not present, the fund did not exist on that date.
-      if (this.completedDateWindows.has(windowKey)) {
-        return false;
-      }
-
       return !Array.from(fetchedMap.values()).some(r => {
         const rDate = parseNavDate(r.date);
-        const diffDays = Math.abs((rDate - tDate) / (1000 * 60 * 60 * 24));
+        if (!rDate || isNaN(rDate.getTime())) return false;
+        const diffDays = Math.abs((rDate.getTime() - tDate.getTime()) / (1000 * 60 * 60 * 24));
         return diffDays <= 7;
       });
     });
@@ -1484,6 +1521,9 @@ class AmfiService {
     const now = Date.now();
     const cached = this.navHistoryCache.get(code);
     if (cached && Array.isArray(cached.navList) && cached.navList.length > 0) {
+      if (cached.isComplete) {
+        return cached.navList;
+      }
       const isContinuous = this.isNavListContinuous(cached.navList);
       if (!requireContinuous || isContinuous) {
         if (!minRequiredDate) {
@@ -1494,12 +1534,9 @@ class AmfiService {
           return cached.navList;
         }
 
-        // Check if cached navList actually covers reqDate (i.e. has a record within 7 days of reqDate)
-        const coversReqDate = cached.navList.some(r => {
-          const rDate = parseNavDate(r.date);
-          return Math.abs((rDate.getTime() - reqDate.getTime()) / (1000 * 60 * 60 * 24)) <= 7;
-        });
-        if (coversReqDate) {
+        const earliestCachedDate = parseNavDate(cached.navList[cached.navList.length - 1]?.date);
+        // If cached navList extends back to cover reqDate (or within 15 days of it), it satisfies the requirement
+        if (earliestCachedDate && earliestCachedDate.getTime() <= reqDate.getTime() + (15 * 86400000)) {
           return cached.navList;
         }
       } else {
@@ -1561,12 +1598,17 @@ class AmfiService {
       const cacheKey = `${schemeCode}_${isDirect ? 'dir' : 'reg'}_${daysList.join(',')}_${startDate || ''}_${endDate || ''}_${asOfDate || ''}`;
       const cached = this.computedCache.get(cacheKey);
       if (cached && (Date.now() - cached.timestamp < AMFI_CACHE_TTL * 1000)) {
-        // Verify that cached computation navDate is not behind the target anchor date
-        const targetReqDate = parseNavDate(targetAnchorDate);
-        const cachedNavDate = parseNavDate(cached.data?.navDate);
-        const isTargetCurrentOrFuture = this.reportDate && targetReqDate && targetReqDate.getTime() >= parseNavDate(this.reportDate).getTime();
-        if (isTargetCurrentOrFuture || !targetReqDate || !cachedNavDate || cachedNavDate.getTime() >= targetReqDate.getTime()) {
-          return cached.data;
+        // If cached computation has missing returns for 5Y or 10Y, but NAV history is now complete, bypass cache to calculate fresh
+        const histEntry = this.navHistoryCache.get(Number(schemeCode));
+        const hasMissingReturns = cached.data?.return5Yr === null || cached.data?.return10Yr === null;
+        if (!hasMissingReturns || !histEntry?.isComplete) {
+          // Verify that cached computation navDate is not behind the target anchor date
+          const targetReqDate = parseNavDate(targetAnchorDate);
+          const cachedNavDate = parseNavDate(cached.data?.navDate);
+          const isTargetCurrentOrFuture = this.reportDate && targetReqDate && targetReqDate.getTime() >= parseNavDate(this.reportDate).getTime();
+          if (isTargetCurrentOrFuture || !targetReqDate || !cachedNavDate || cachedNavDate.getTime() >= targetReqDate.getTime()) {
+            return cached.data;
+          }
         }
       }
     }
@@ -1615,7 +1657,7 @@ class AmfiService {
     }
 
     // Ensure navList is strictly sorted descending by date (newest first)
-    const sortedNavList = [...navList].sort((a, b) => parseNavDate(b.date).getTime() - parseNavDate(a.date).getTime());
+    let sortedNavList = [...navList].sort((a, b) => parseNavDate(b.date).getTime() - parseNavDate(a.date).getTime());
 
     // Determine anchor valuation NAV (latest or as-of-date)
     let latestObj = sortedNavList[0];
@@ -1642,11 +1684,47 @@ class AmfiService {
       return resultReturns;
     }
 
-    const VT = Number(latestObj.nav);
-    const latestDate = parseNavDate(latestObj.date);
+    let VT = Number(latestObj.nav);
+    let latestDate = parseNavDate(latestObj.date);
 
     resultReturns.currentNav = VT;
     resultReturns.navDate = latestObj.date;
+
+    // Check if deep historical data (5Y, 10Y) is needed and navList is not yet verified complete from inception
+    const codeNum = Number(schemeCode);
+    const cachedEntry = this.navHistoryCache.get(codeNum);
+    if (!cachedEntry || !cachedEntry.isComplete) {
+      const tenYearsAgo = new Date(latestDate);
+      tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
+      const earliestInList = sortedNavList.length > 0 ? parseNavDate(sortedNavList[sortedNavList.length - 1].date) : null;
+      if (!earliestInList || earliestInList.getTime() > tenYearsAgo.getTime()) {
+        try {
+          const fullMfapiList = await this.fetchMfapiNavHistory(codeNum);
+          if (fullMfapiList && fullMfapiList.length > 0) {
+            sortedNavList = [...fullMfapiList].sort((a, b) => parseNavDate(b.date).getTime() - parseNavDate(a.date).getTime());
+            if (asOfDate) {
+              const targetValDate = parseNavDate(asOfDate);
+              const found = sortedNavList.find(item => parseNavDate(item.date).getTime() <= targetValDate.getTime());
+              if (found) {
+                latestObj = found;
+                VT = Number(latestObj.nav);
+                latestDate = parseNavDate(latestObj.date);
+                resultReturns.currentNav = VT;
+                resultReturns.navDate = latestObj.date;
+              }
+            } else if (sortedNavList[0]) {
+              latestObj = sortedNavList[0];
+              VT = Number(latestObj.nav);
+              latestDate = parseNavDate(latestObj.date);
+              resultReturns.currentNav = VT;
+              resultReturns.navDate = latestObj.date;
+            }
+          }
+        } catch (e) {
+          logger.warn(`Could not fetch full history for ${codeNum}: ${e.message}`);
+        }
+      }
+    }
 
     // Yearly formula returns calculated backwards from valuation date
     const periods = [
