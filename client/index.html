@@ -13,9 +13,11 @@
     <script>
       (function() {
         try {
-          var saved = localStorage.getItem('snazzy_fundlens_theme') || localStorage.getItem('fundpulse_theme');
-          // Default MUST be light mode for new users
-          var theme = (saved === 'dark' || saved === 'light') ? saved : 'light';
+          // Remove old legacy theme key if present
+          localStorage.removeItem('fundpulse_theme');
+          var saved = localStorage.getItem('snazzy_fundlens_theme');
+          // Default is strictly 'light' (white/day mode) unless user explicitly selected 'dark'
+          var theme = (saved === 'dark') ? 'dark' : 'light';
           document.documentElement.className = theme;
           document.documentElement.setAttribute('data-theme', theme);
         } catch (e) {}

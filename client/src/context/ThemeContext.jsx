@@ -3,15 +3,16 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 const ThemeContext = createContext();
 
 const STORAGE_KEY = 'snazzy_fundlens_theme';
-const LEGACY_STORAGE_KEY = 'fundpulse_theme';
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
-      if (saved === 'light' || saved === 'dark') return saved;
+      localStorage.removeItem('fundpulse_theme');
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved === 'dark') return 'dark';
+      if (saved === 'light') return 'light';
     } catch (e) {}
-    // Strict requirement: Default MUST be light mode for first-time users
+    // Default is strictly light mode (white / day mode) for all users
     return 'light';
   });
 
