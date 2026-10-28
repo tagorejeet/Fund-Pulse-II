@@ -60,6 +60,13 @@ app.use((err, req, res, next) => {
 const nseService = require('./services/nseService');
 
 app.listen(PORT, async () => {
+  console.log('\n' + '='.repeat(55));
+  console.log(`🚀 FundPulse Server & Web App Running!`);
+  console.log(`📌 Port Number:  ${PORT}`);
+  console.log(`🌐 Local URL:    http://localhost:${PORT}`);
+  console.log(`🔌 API Endpoint: http://localhost:${PORT}/api/funds`);
+  console.log(`⚙️  Environment:  ${process.env.NODE_ENV || 'development'}`);
+  console.log('='.repeat(55) + '\n');
   logger.info(`FundPulse Backend Server running on port ${PORT}`);
   logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
   logger.info('Priming initial AMFI data cache...');

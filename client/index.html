@@ -13,10 +13,12 @@
     <script>
       (function() {
         try {
-          // Remove old legacy theme key if present
+          // Clear any legacy persistent dark mode keys from localStorage
           localStorage.removeItem('fundpulse_theme');
-          var saved = localStorage.getItem('snazzy_fundlens_theme');
-          // Default is strictly 'light' (white/day mode) unless user explicitly selected 'dark'
+          localStorage.removeItem('snazzy_fundlens_theme');
+          // Check sessionStorage for current browsing session only
+          var saved = sessionStorage.getItem('snazzy_fundlens_theme');
+          // Default is strictly 'light' (clean white day mode) when opening the URL
           var theme = (saved === 'dark') ? 'dark' : 'light';
           document.documentElement.className = theme;
           document.documentElement.setAttribute('data-theme', theme);
