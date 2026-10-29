@@ -45,8 +45,8 @@ export const SipDetailModal = ({
     }));
   }, [activePeriodData]);
 
-  const handleExportThisFund = () => {
-    exportSipToExcel({
+  const handleExportThisFund = async () => {
+    await exportSipToExcel({
       results: [fundResult],
       monthlySip: fundResult.monthlySipAmount,
       calculationDate: fundResult.calculationDate,
@@ -85,6 +85,9 @@ export const SipDetailModal = ({
               <span>Monthly SIP: <strong className="text-slate-900 dark:text-white font-mono">₹{Number(fundResult.monthlySipAmount).toLocaleString('en-IN')}</strong></span>
               <span>Calculation Date: <strong className="text-slate-900 dark:text-white">{fundResult.calculationDate}</strong></span>
               <span>Valuation NAV: <strong className="text-slate-900 dark:text-white font-mono">₹{fundResult.currentNav ? Number(fundResult.currentNav).toFixed(2) : 'N/A'}</strong></span>
+              {fundResult.dailyAUMFormatted && fundResult.dailyAUMFormatted !== 'N/A' && (
+                <span>AUM: <strong className="text-slate-900 dark:text-white font-mono">{fundResult.dailyAUMFormatted}</strong></span>
+              )}
             </div>
           </div>
 

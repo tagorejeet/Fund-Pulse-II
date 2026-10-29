@@ -96,7 +96,9 @@ const calculateSip = async (req, res) => {
               category: allowMatch.category,
               amcName: allowMatch.amcName,
               regularSchemeCode: allowMatch.regularSchemeCode,
-              directSchemeCode: allowMatch.directSchemeCode
+              directSchemeCode: allowMatch.directSchemeCode,
+              dailyAUMRaw: allowMatch.seedAUM || null,
+              dailyAUMFormatted: amfiService.formatAUM(allowMatch.seedAUM || null)
             };
           }
         }
@@ -115,6 +117,10 @@ const calculateSip = async (req, res) => {
             fundId: id,
             displayName: id,
             plan: isDirect ? 'Direct' : 'Regular',
+            dailyAUMRaw: null,
+            dailyAUMFormatted: 'N/A',
+            aum: null,
+            aumFormatted: 'N/A',
             error: 'Scheme not found in registry',
             returns: { return1Yr: null, return2Yr: null, return3Yr: null, return5Yr: null, return10Yr: null }
           })),
@@ -128,9 +134,38 @@ const calculateSip = async (req, res) => {
       });
     }
 
+    // Resolve historical/live AUM for mutual fund schemes as of the calculation date
+    const mfSchemes = uniqueSchemes.filter(s => !s.isNseIndex);
+    let histAumMap = null;
+    try {
+      const histAumRes = await amfiService.resolveHistoricalAumForSchemes(resolvedCalcDate, mfSchemes);
+      histAumMap = histAumRes?.map;
+    } catch (aumErr) {
+      logger.warn(`Failed to resolve historical AUM for SIP schemes: ${aumErr.message}`);
+    }
+
+    const resolveAumForScheme = (sch) => {
+      if (sch.isNseIndex) {
+        return { dailyAUMRaw: null, dailyAUMFormatted: 'N/A' };
+      }
+      const histMatch = histAumMap ? histAumMap.get(sch.id) : null;
+      const m = histMatch || sch.amfiMatch;
+      const dailyAUMRaw = (m && m.dailyAUM !== null && m.dailyAUM !== undefined)
+        ? m.dailyAUM
+        : (sch.dailyAUMRaw !== null && sch.dailyAUMRaw !== undefined ? sch.dailyAUMRaw : null);
+      const dailyAUMFormatted = (m && m.dailyAUM !== null && m.dailyAUM !== undefined)
+        ? amfiService.formatAUM(m.dailyAUM)
+        : (sch.dailyAUMFormatted && sch.dailyAUMFormatted !== 'N/A'
+            ? sch.dailyAUMFormatted
+            : (dailyAUMRaw ? amfiService.formatAUM(dailyAUMRaw) : 'N/A'));
+      return { dailyAUMRaw, dailyAUMFormatted };
+    };
+
     // Compute SIP returns for each scheme and plan mode
     const nestedResults = await Promise.all(
       uniqueSchemes.map(async (scheme) => {
+        const { dailyAUMRaw, dailyAUMFormatted } = resolveAumForScheme(scheme);
+
         // Handle NSE Indices (Benchmark - not split into Regular/Direct)
         if (scheme.isNseIndex) {
           try {
@@ -142,6 +177,10 @@ const calculateSip = async (req, res) => {
                 category: scheme.category || 'NSE Benchmark',
                 amcName: scheme.amcName || 'NSE Indices Limited',
                 plan: 'Benchmark',
+                dailyAUMRaw: null,
+                dailyAUMFormatted: 'N/A',
+                aum: null,
+                aumFormatted: 'N/A',
                 error: 'NSE historical index values temporarily unavailable',
                 returns: { return1Yr: null, return2Yr: null, return3Yr: null, return5Yr: null, return10Yr: null }
               }];
@@ -159,6 +198,10 @@ const calculateSip = async (req, res) => {
             fundSipResult.fundId = scheme.id;
             fundSipResult.displayName = `${scheme.displayName} (NSE Benchmark)`;
             fundSipResult.isNseIndex = true;
+            fundSipResult.dailyAUMRaw = null;
+            fundSipResult.dailyAUMFormatted = 'N/A';
+            fundSipResult.aum = null;
+            fundSipResult.aumFormatted = 'N/A';
             return [fundSipResult];
           } catch (err) {
             logger.error(`Error calculating SIP for NSE index ${scheme.id}:`, err);
@@ -168,6 +211,10 @@ const calculateSip = async (req, res) => {
               category: scheme.category || 'NSE Benchmark',
               amcName: scheme.amcName || 'NSE Indices Limited',
               plan: 'Benchmark',
+              dailyAUMRaw: null,
+              dailyAUMFormatted: 'N/A',
+              aum: null,
+              aumFormatted: 'N/A',
               error: err.message,
               returns: { return1Yr: null, return2Yr: null, return3Yr: null, return5Yr: null, return10Yr: null }
             }];
@@ -188,6 +235,10 @@ const calculateSip = async (req, res) => {
                   category: scheme.category,
                   amcName: scheme.amcName,
                   plan: isDir ? 'Direct' : 'Regular',
+                  dailyAUMRaw,
+                  dailyAUMFormatted,
+                  aum: dailyAUMRaw,
+                  aumFormatted: dailyAUMFormatted,
                   error: 'Scheme code not available for chosen plan',
                   returns: { return1Yr: null, return2Yr: null, return3Yr: null, return5Yr: null, return10Yr: null }
                 };
@@ -203,6 +254,10 @@ const calculateSip = async (req, res) => {
                   category: scheme.category,
                   amcName: scheme.amcName,
                   plan: isDir ? 'Direct' : 'Regular',
+                  dailyAUMRaw,
+                  dailyAUMFormatted,
+                  aum: dailyAUMRaw,
+                  aumFormatted: dailyAUMFormatted,
                   error: 'Historical NAV records temporarily unavailable for calculation',
                   returns: { return1Yr: null, return2Yr: null, return3Yr: null, return5Yr: null, return10Yr: null }
                 };
@@ -238,6 +293,11 @@ const calculateSip = async (req, res) => {
                 }
               }
 
+              fundSipResult.dailyAUMRaw = dailyAUMRaw;
+              fundSipResult.dailyAUMFormatted = dailyAUMFormatted;
+              fundSipResult.aum = dailyAUMRaw;
+              fundSipResult.aumFormatted = dailyAUMFormatted;
+
               if (isBoth) {
                 fundSipResult.fundId = `${scheme.id}-${isDir ? 'dir' : 'reg'}`;
                 fundSipResult.displayName = `${scheme.displayName} (${isDir ? 'Direct' : 'Regular'})`;
@@ -253,6 +313,10 @@ const calculateSip = async (req, res) => {
                 category: scheme.category,
                 amcName: scheme.amcName,
                 plan: isDir ? 'Direct' : 'Regular',
+                dailyAUMRaw,
+                dailyAUMFormatted,
+                aum: dailyAUMRaw,
+                aumFormatted: dailyAUMFormatted,
                 error: err.message,
                 returns: { return1Yr: null, return2Yr: null, return3Yr: null, return5Yr: null, return10Yr: null }
               };

@@ -37,10 +37,10 @@ const CATEGORY_ORDER = {
 };
 
 const PRESET_POPULAR_FUNDS = [
-  { id: 'nippon-india-small-cap-growth', displayName: 'Nippon India Small Cap Fund - Growth', category: 'Small Cap', amcName: 'Nippon India Mutual Fund' },
-  { id: 'edelweiss-mid-cap-growth', displayName: 'Edelweiss Mid Cap Fund - Growth', category: 'Mid Cap', amcName: 'Edelweiss Mutual Fund' },
-  { id: 'hdfc-mid-cap-growth', displayName: 'HDFC Mid Cap Fund - Growth', category: 'Mid Cap', amcName: 'HDFC Mutual Fund' },
-  { id: 'icici-prudential-bluechip-growth', displayName: 'ICICI Prudential Bluechip Fund - Growth', category: 'Large Cap', amcName: 'ICICI Prudential Mutual Fund' }
+  { id: 'nippon-india-small-cap-growth', displayName: 'Nippon India Small Cap Fund - Growth', category: 'Small Cap', amcName: 'Nippon India Mutual Fund', dailyAUMRaw: 56420.90, dailyAUMFormatted: '₹56,420.90 Cr' },
+  { id: 'edelweiss-mid-cap-growth', displayName: 'Edelweiss Mid Cap Fund - Growth', category: 'Mid Cap', amcName: 'Edelweiss Mutual Fund', dailyAUMRaw: 8750.30, dailyAUMFormatted: '₹8,750.30 Cr' },
+  { id: 'hdfc-mid-cap-growth', displayName: 'HDFC Mid Cap Fund - Growth', category: 'Mid Cap', amcName: 'HDFC Mutual Fund', dailyAUMRaw: 67890.50, dailyAUMFormatted: '₹67,890.50 Cr' },
+  { id: 'icici-prudential-bluechip-growth', displayName: 'ICICI Prudential Bluechip Fund - Growth', category: 'Large Cap', amcName: 'ICICI Prudential Mutual Fund', dailyAUMRaw: 54120.80, dailyAUMFormatted: '₹54,120.80 Cr' }
 ];
 
 export const SipCustomFundList = ({
@@ -462,6 +462,7 @@ export const SipCustomFundList = ({
                         <tr>
                           <th className="p-3 w-10 text-center">Export</th>
                           <th className="p-3 min-w-[220px]">Scheme Name</th>
+                          <th className="p-3 min-w-[100px]">AUM (Cr)</th>
                           <th className="p-3 min-w-[90px]">NAV</th>
                           <th className="p-3 text-center min-w-[80px]">1Y SIP</th>
                           <th className="p-3 text-center min-w-[80px]">2Y SIP</th>
@@ -506,6 +507,10 @@ export const SipCustomFundList = ({
                                   {fund.displayName}
                                 </div>
                                 <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 select-text">{fund.amcName}</div>
+                              </td>
+
+                              <td className="p-3 font-mono text-slate-800 dark:text-slate-200">
+                                {fund.dailyAUMFormatted || (fund.dailyAUMRaw ? `₹${Number(fund.dailyAUMRaw).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Cr` : 'N/A')}
                               </td>
 
                               <td className="p-3 font-mono text-slate-800 dark:text-slate-200">
@@ -588,6 +593,7 @@ export const SipCustomFundList = ({
                   <tr>
                     <th className="p-3 w-10 text-center">Export</th>
                     <th className="p-3 min-w-[220px]">Benchmark Index</th>
+                    <th className="p-3 min-w-[100px]">AUM (Cr)</th>
                     <th className="p-3 min-w-[100px]">Index Value (NAV)</th>
                     <th className="p-3 text-center min-w-[80px]">1Y SIP</th>
                     <th className="p-3 text-center min-w-[80px]">2Y SIP</th>
@@ -632,6 +638,10 @@ export const SipCustomFundList = ({
                             {idx.displayName}
                           </div>
                           <div className="text-[10px] text-amber-700 dark:text-amber-400 mt-0.5">{idx.amcName || 'Official Benchmark'}</div>
+                        </td>
+
+                        <td className="p-3 font-mono text-slate-400 dark:text-slate-500">
+                          -
                         </td>
 
                         <td className="p-3 font-mono font-bold text-slate-900 dark:text-white">

@@ -33,10 +33,10 @@ const SIP_AMOUNT_KEY = 'fundpulse_sip_amount';
 const SIP_DAY_KEY = 'fundpulse_sip_day';
 
 const PRESET_POPULAR_FUNDS = [
-  { id: 'nippon-india-small-cap-growth', displayName: 'Nippon India Small Cap Fund - Growth', category: 'Small Cap', amcName: 'Nippon India Mutual Fund' },
-  { id: 'edelweiss-mid-cap-growth', displayName: 'Edelweiss Mid Cap Fund - Growth', category: 'Mid Cap', amcName: 'Edelweiss Mutual Fund' },
-  { id: 'hdfc-mid-cap-growth', displayName: 'HDFC Mid Cap Fund - Growth', category: 'Mid Cap', amcName: 'HDFC Mutual Fund' },
-  { id: 'icici-prudential-bluechip-growth', displayName: 'ICICI Prudential Bluechip Fund - Growth', category: 'Large Cap', amcName: 'ICICI Prudential Mutual Fund' }
+  { id: 'nippon-india-small-cap-growth', displayName: 'Nippon India Small Cap Fund - Growth', category: 'Small Cap', amcName: 'Nippon India Mutual Fund', dailyAUMRaw: 56420.90, dailyAUMFormatted: '₹56,420.90 Cr' },
+  { id: 'edelweiss-mid-cap-growth', displayName: 'Edelweiss Mid Cap Fund - Growth', category: 'Mid Cap', amcName: 'Edelweiss Mutual Fund', dailyAUMRaw: 8750.30, dailyAUMFormatted: '₹8,750.30 Cr' },
+  { id: 'hdfc-mid-cap-growth', displayName: 'HDFC Mid Cap Fund - Growth', category: 'Mid Cap', amcName: 'HDFC Mutual Fund', dailyAUMRaw: 67890.50, dailyAUMFormatted: '₹67,890.50 Cr' },
+  { id: 'icici-prudential-bluechip-growth', displayName: 'ICICI Prudential Bluechip Fund - Growth', category: 'Large Cap', amcName: 'ICICI Prudential Mutual Fund', dailyAUMRaw: 54120.80, dailyAUMFormatted: '₹54,120.80 Cr' }
 ];
 
 export const SipCalculator = ({
@@ -342,10 +342,13 @@ export const SipCalculator = ({
           response.data.results.forEach(r => {
             if (r.fundId) {
               next[r.fundId] = {
+                ...(next[r.fundId] || {}),
                 id: r.fundId,
                 displayName: r.displayName,
                 category: r.category,
                 amcName: r.amcName,
+                dailyAUMRaw: r.dailyAUMRaw,
+                dailyAUMFormatted: r.dailyAUMFormatted,
                 isNseIndex: r.isNseIndex || r.plan === 'Benchmark'
               };
             }
@@ -442,13 +445,13 @@ export const SipCalculator = ({
     } catch (e) {}
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const exportable = results.filter(r => checkedExportIds.has(r.fundId));
     if (exportable.length === 0) {
       alert('Please select at least one scheme or index checkbox to export.');
       return;
     }
-    exportSipToExcel({
+    await exportSipToExcel({
       results: exportable,
       monthlySip: monthlySip || 100000,
       calculationDate,
@@ -465,7 +468,10 @@ export const SipCalculator = ({
       let aVal = a.returns?.[sortField] ?? a[sortField];
       let bVal = b.returns?.[sortField] ?? b[sortField];
 
-      if (sortField === 'invested3Y') {
+      if (sortField === 'dailyAUMRaw') {
+        aVal = a.dailyAUMRaw !== null && a.dailyAUMRaw !== undefined ? Number(a.dailyAUMRaw) : null;
+        bVal = b.dailyAUMRaw !== null && b.dailyAUMRaw !== undefined ? Number(b.dailyAUMRaw) : null;
+      } else if (sortField === 'invested3Y') {
         aVal = a.periods?.['3Y']?.totalInvested;
         bVal = b.periods?.['3Y']?.totalInvested;
       } else if (sortField === 'units3Y') {
@@ -718,6 +724,14 @@ export const SipCalculator = ({
                           <span className="text-snazzy-navy dark:text-snazzy-gold font-medium">{fund.category}</span>
                           <span>•</span>
                           <span>{fund.amcName}</span>
+                          {fund.dailyAUMFormatted && fund.dailyAUMFormatted !== 'N/A' && (
+                            <>
+                              <span>•</span>
+                              <span className="text-slate-600 dark:text-slate-300 font-mono">
+                                AUM: {fund.dailyAUMFormatted}
+                              </span>
+                            </>
+                          )}
                           {navValue && (
                             <>
                               <span>•</span>
@@ -864,6 +878,11 @@ export const SipCalculator = ({
                     {scheme.category && (
                       <span className="px-1.5 py-0.5 rounded text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-snazzy-gold font-medium">
                         {scheme.category}
+                      </span>
+                    )}
+                    {scheme.dailyAUMFormatted && scheme.dailyAUMFormatted !== 'N/A' && (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 font-medium">
+                        AUM: {scheme.dailyAUMFormatted}
                       </span>
                     )}
                     <button
@@ -1146,6 +1165,16 @@ export const SipCalculator = ({
                         </div>
                       </th>
 
+                      <th 
+                        onClick={() => handleSort('dailyAUMRaw')}
+                        className="p-3 min-w-[110px] cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>AUM (Cr)</span>
+                          {renderSortIcon('dailyAUMRaw')}
+                        </div>
+                      </th>
+
                       <th className="p-3 min-w-[100px]">Current NAV</th>
 
                       <th 
@@ -1292,6 +1321,13 @@ export const SipCalculator = ({
                             </div>
                           </td>
 
+                          {/* AUM (Cr) */}
+                          <td className="p-3 font-mono text-[11px] text-slate-800 dark:text-slate-200">
+                            {fund.dailyAUMFormatted && fund.dailyAUMFormatted !== 'N/A'
+                              ? fund.dailyAUMFormatted
+                              : (fund.dailyAUMRaw ? `₹${Number(fund.dailyAUMRaw).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Cr` : 'N/A')}
+                          </td>
+
                           {/* Current NAV */}
                           <td className="p-3 font-mono text-[11px] text-slate-800 dark:text-slate-200">
                             ₹{fund.currentNav ? Number(fund.currentNav).toFixed(2) : 'N/A'}
@@ -1429,6 +1465,8 @@ export const SipCalculator = ({
                         {renderSortIcon('displayName')}
                       </div>
                     </th>
+
+                    <th className="p-3 min-w-[110px]">AUM (Cr)</th>
 
                     <th className="p-3 min-w-[120px]">Index Value (NAV)</th>
 
@@ -1571,6 +1609,11 @@ export const SipCalculator = ({
                             <span>•</span>
                             <span>NSE Indices Limited</span>
                           </div>
+                        </td>
+
+                        {/* AUM (Cr) */}
+                        <td className="p-3 font-mono text-[11px] text-slate-400 dark:text-slate-500">
+                          -
                         </td>
 
                         {/* Current NAV / Index Value */}
