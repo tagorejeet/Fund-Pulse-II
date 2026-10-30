@@ -11585,8 +11585,8 @@ Franklin Templeton Mutual Fund
  
 HDFC Mutual Fund
  
-149180;INF179KC1BO4;-;HDFC Developed World Overseas Equity Passive FOF;;;21.918;28-Oct-2026
-149181;INF179KC1BP1;-;HDFC Developed World Overseas Equity Passive FOF;;;21.413;28-Oct-2026
+149180;INF179KC1BO4;-;HDFC Developed World Overseas Equity Passive FOF;;;21.971;29-Oct-2026
+149181;INF179KC1BP1;-;HDFC Developed World Overseas Equity Passive FOF;;;21.465;29-Oct-2026
  
 ICICI Prudential Mutual Fund
  

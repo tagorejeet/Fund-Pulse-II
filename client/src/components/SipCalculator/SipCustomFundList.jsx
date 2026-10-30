@@ -104,8 +104,18 @@ export const SipCustomFundList = ({
   // Build unified item list for all selected items (combining results and selected IDs)
   const resultsMap = useMemo(() => {
     const map = new Map();
+    const norm = (str) => String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     results.forEach(r => {
-      if (r.fundId) map.set(r.fundId, r);
+      if (r.fundId) {
+        map.set(r.fundId, r);
+        map.set(norm(r.fundId), r);
+        if (r.displayName) map.set(norm(r.displayName), r);
+        if (r.fundId.endsWith('-reg') || r.fundId.endsWith('-dir')) {
+          const baseId = r.fundId.replace(/-(reg|dir)$/, '');
+          map.set(baseId, r);
+          map.set(norm(baseId), r);
+        }
+      }
     });
     return map;
   }, [results]);
@@ -115,15 +125,20 @@ export const SipCustomFundList = ({
     const mf = [];
     const nse = [];
     const processedIds = new Set();
+    const norm = (str) => String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
     // Ensure all items in selectedFundIds are included
     selectedFundIds.forEach(id => {
       if (processedIds.has(id)) return;
       processedIds.add(id);
 
-      const res = resultsMap.get(id);
-      const meta = fundMetaMap[id] || (allFunds && allFunds.find(f => f.id === id)) || {};
+      const idNorm = norm(id);
+      const res = resultsMap.get(id) || resultsMap.get(idNorm) || results.find(r => norm(r.fundId) === idNorm || (r.displayName && norm(r.displayName) === idNorm));
+      const meta = fundMetaMap[id] || (allFunds && allFunds.find(f => f.id === id || norm(f.id) === idNorm || (f.displayName && norm(f.displayName) === idNorm))) || {};
       const isNse = res?.isNseIndex || res?.plan === 'Benchmark' || meta?.isNseIndex || id.startsWith('NIFTY');
+
+      const rawAum = res?.dailyAUMRaw ?? res?.aum ?? meta?.dailyAUMRaw ?? meta?.aum ?? null;
+      const formattedAum = res?.dailyAUMFormatted || res?.aumFormatted || meta?.dailyAUMFormatted || meta?.aumFormatted || (rawAum ? `₹${Number(rawAum).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Cr` : 'N/A');
 
       const item = {
         id,
@@ -132,6 +147,8 @@ export const SipCustomFundList = ({
         category: res?.category || meta?.category || (isNse ? 'Benchmark' : 'Other'),
         amcName: res?.amcName || meta?.amcName || (isNse ? 'NSE Indices' : ''),
         currentNav: res?.currentNav ?? meta?.currentNav,
+        dailyAUMRaw: rawAum,
+        dailyAUMFormatted: formattedAum,
         returns: res?.returns || {},
         periods: res?.periods || {},
         isNseIndex: isNse,
@@ -156,6 +173,8 @@ export const SipCustomFundList = ({
           category: r.category || 'Benchmark',
           amcName: r.amcName || 'NSE Indices',
           currentNav: r.currentNav,
+          dailyAUMRaw: null,
+          dailyAUMFormatted: '-',
           returns: r.returns || {},
           periods: r.periods || {},
           isNseIndex: true,
@@ -510,7 +529,9 @@ export const SipCustomFundList = ({
                               </td>
 
                               <td className="p-3 font-mono text-slate-800 dark:text-slate-200">
-                                {fund.dailyAUMFormatted || (fund.dailyAUMRaw ? `₹${Number(fund.dailyAUMRaw).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Cr` : 'N/A')}
+                                {fund.dailyAUMFormatted && fund.dailyAUMFormatted !== 'N/A'
+                                  ? fund.dailyAUMFormatted
+                                  : (fund.dailyAUMRaw ? `₹${Number(fund.dailyAUMRaw).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Cr` : 'N/A')}
                               </td>
 
                               <td className="p-3 font-mono text-slate-800 dark:text-slate-200">

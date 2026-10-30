@@ -135,10 +135,13 @@ const calculateSip = async (req, res) => {
     }
 
     // Resolve historical/live AUM for mutual fund schemes as of the calculation date
+    // Safeguard: AUM resolution must never delay or fail SIP returns calculation
     const mfSchemes = uniqueSchemes.filter(s => !s.isNseIndex);
     let histAumMap = null;
     try {
-      const histAumRes = await amfiService.resolveHistoricalAumForSchemes(resolvedCalcDate, mfSchemes);
+      const aumPromise = amfiService.resolveHistoricalAumForSchemes(resolvedCalcDate, mfSchemes);
+      const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 3000));
+      const histAumRes = await Promise.race([aumPromise, timeoutPromise]);
       histAumMap = histAumRes?.map;
     } catch (aumErr) {
       logger.warn(`Failed to resolve historical AUM for SIP schemes: ${aumErr.message}`);
