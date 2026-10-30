@@ -44,6 +44,8 @@ export const CustomFundList = ({
   onToggleSelectNseIndex,
   onRemoveNseIndex,
   isLoading = false,
+  error = null,
+  onRetry = null,
   mode = 'yearly',
   customDays = 33,
   customDaysList = [33, 50, 67],
@@ -445,6 +447,20 @@ export const CustomFundList = ({
           <div className="py-24 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 flex flex-col items-center justify-center gap-3 text-center shadow-sm">
             <div className="snazzy-spinner mx-auto"></div>
             <p className="text-sm font-medium text-slate-600 dark:text-slate-300 tracking-wide">Fetching fund data...</p>
+          </div>
+        ) : error ? (
+          <div className="py-12 px-6 rounded-2xl bg-white dark:bg-slate-900/60 border border-amber-200 dark:border-amber-800/50 flex flex-col items-center justify-center gap-3 text-center shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-lg">!</div>
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{error}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md">AMFI or server data connection timed out. Click below to retry.</p>
+            {onRetry && (
+              <button
+                onClick={onRetry}
+                className="mt-2 px-4 py-2 rounded-xl bg-snazzy-navy dark:bg-snazzy-gold text-white dark:text-snazzy-navy text-xs font-bold shadow hover:opacity-90 transition-all cursor-pointer"
+              >
+                Retry Loading
+              </button>
+            )}
           </div>
         ) : growthFunds.length === 0 ? (
           <div className="p-8 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 text-center text-slate-500 dark:text-slate-400 text-xs shadow-sm">

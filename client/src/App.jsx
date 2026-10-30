@@ -449,6 +449,7 @@ export function App() {
   }, [activeCategory, debouncedSearchQuery, selectedPlan, page, customDaysList, startDate, endDate, calculationDate]);
 
   // Load Batch Schemes for Custom Fund List
+  const [customFundsError, setCustomFundsError] = useState(null);
   const loadCustomFunds = useCallback(async (
     idsSet = selectedFundIds,
     plan = selectedPlan,
@@ -459,10 +460,12 @@ export function App() {
   ) => {
     if (!idsSet || idsSet.size === 0) {
       setCustomFunds([]);
+      setCustomFundsError(null);
       return;
     }
 
     setIsCustomLoading(true);
+    setCustomFundsError(null);
     try {
       const formattedDays = Array.isArray(daysList) ? daysList.join(',') : String(daysList);
       const res = await fetchBatchFunds({
@@ -473,15 +476,17 @@ export function App() {
         endDate: eDate,
         asOfDate: calcDate
       });
-      setCustomFunds(res.data.funds || []);
+      setCustomFunds(res.data?.funds || []);
     } catch (err) {
       console.error('Failed to load custom fund list details:', err);
+      setCustomFundsError(err.message || 'Server timeout or network error while fetching fund details.');
     } finally {
       setIsCustomLoading(false);
     }
   }, [selectedFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate]);
 
   // Load Batch Schemes for Suggestion Sheet
+  const [suggestionFundsError, setSuggestionFundsError] = useState(null);
   const loadSuggestionFunds = useCallback(async (
     idsSet = suggestionFundIds,
     plan = selectedPlan,
@@ -492,10 +497,12 @@ export function App() {
   ) => {
     if (!idsSet || idsSet.size === 0) {
       setSuggestionFunds([]);
+      setSuggestionFundsError(null);
       return;
     }
 
     setIsSuggestionLoading(true);
+    setSuggestionFundsError(null);
     try {
       const formattedDays = Array.isArray(daysList) ? daysList.join(',') : String(daysList);
       const res = await fetchBatchFunds({
@@ -506,9 +513,10 @@ export function App() {
         endDate: eDate,
         asOfDate: calcDate
       });
-      setSuggestionFunds(res.data.funds || []);
+      setSuggestionFunds(res.data?.funds || []);
     } catch (err) {
       console.error('Failed to load suggestion fund list details:', err);
+      setSuggestionFundsError(err.message || 'Server timeout or network error while fetching fund details.');
     } finally {
       setIsSuggestionLoading(false);
     }
@@ -930,6 +938,8 @@ export function App() {
                 onToggleSelectNseIndex={handleToggleSelectNseIndex}
                 onRemoveNseIndex={handleRemoveNseIndex}
                 isLoading={isCustomLoading}
+                error={customFundsError}
+                onRetry={() => loadCustomFunds(selectedFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate)}
                 mode={mode}
                 customDays={customDays}
                 customDaysList={customDaysList}
@@ -955,6 +965,8 @@ export function App() {
                 onToggleSelectNseIndex={handleToggleSelectNseIndex}
                 onRemoveNseIndex={handleRemoveNseIndex}
                 isLoading={isSuggestionLoading}
+                error={suggestionFundsError}
+                onRetry={() => loadSuggestionFunds(suggestionFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate)}
                 mode={mode}
                 customDays={customDays}
                 customDaysList={customDaysList}

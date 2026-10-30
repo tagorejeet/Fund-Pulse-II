@@ -20,6 +20,7 @@ const { fuzzyFilterSchemes } = require('../utils/fuzzySearch');
 
 const CACHE_DIR = path.join(__dirname, '../cache');
 const NAV_CACHE_FILE = path.join(CACHE_DIR, 'nav_history_cache.json');
+const SEED_NAV_CACHE_FILE = path.join(CACHE_DIR, 'seed_nav_history.json');
 const AUM_CACHE_FILE = path.join(CACHE_DIR, 'amfi_aum_cache.json');
 const HIST_AUM_CACHE_FILE = path.join(CACHE_DIR, 'amfi_hist_aum_cache.json');
 const NAVALL_CACHE_FILE = path.join(CACHE_DIR, 'navall_cache.txt');
@@ -346,6 +347,30 @@ class AmfiService {
 
   loadDiskNavCache() {
     try {
+      // 1. Load committed seed NAV cache (always available on fresh Render deployments)
+      if (fs.existsSync(SEED_NAV_CACHE_FILE)) {
+        try {
+          const raw = fs.readFileSync(SEED_NAV_CACHE_FILE, 'utf-8');
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') {
+            let count = 0;
+            for (const [codeStr, entry] of Object.entries(parsed)) {
+              const code = Number(codeStr);
+              if (code && entry && Array.isArray(entry.navList)) {
+                entry.navList.sort((a, b) => parseNavDate(b.date).getTime() - parseNavDate(a.date).getTime());
+                entry.isComplete = true;
+                this.navHistoryCache.set(code, entry);
+                count++;
+              }
+            }
+            logger.info(`Loaded ${count} curated schemes NAV history from seed cache.`);
+          }
+        } catch (seedErr) {
+          logger.warn(`Could not read seed NAV cache: ${seedErr.message}`);
+        }
+      }
+
+      // 2. Load runtime disk NAV cache if present
       if (fs.existsSync(NAV_CACHE_FILE)) {
         const raw = fs.readFileSync(NAV_CACHE_FILE, 'utf-8');
         const parsed = JSON.parse(raw);
@@ -665,10 +690,26 @@ class AmfiService {
    * Resolves the latest available mutual fund NAV date across India from authoritative feeds
    */
   async resolveLatestNavDate() {
+    if (this.reportDate) return this.reportDate;
+
+    // Check disk cache first for zero-latency resolution
+    if (fs.existsSync(NAVALL_CACHE_FILE)) {
+      try {
+        const text = fs.readFileSync(NAVALL_CACHE_FILE, 'utf-8');
+        const lines = text.split('\n');
+        for (let l of lines) {
+          const parts = l.trim().split(';');
+          if (parts.length >= 8 && parts[7]?.trim()) {
+            return parts[7].trim();
+          }
+        }
+      } catch (e) {}
+    }
+
     try {
       const res = await fetch('https://www.amfiindia.com/spages/NAVAll.txt', {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.timeout(6000)
       });
       if (res.ok) {
         const text = await res.text();
@@ -693,7 +734,7 @@ class AmfiService {
    * Fetch Live AUM, Benchmarks, and Riskometers directly from official AMFI Fund Performance endpoint
    * Covers all 5 AMFI Categories: Equity, Debt, Hybrid, Solution Oriented, and Other (Index/ETFs/FoFs)
    */
-  async fetchAmfiLiveAumData() {
+  async fetchAmfiLiveAumData(allowBackgroundRefresh = true) {
     let diskCache = null;
     try {
       if (fs.existsSync(AUM_CACHE_FILE)) {
@@ -701,12 +742,21 @@ class AmfiService {
         const parsed = JSON.parse(raw);
         if (parsed && Array.isArray(parsed.entries) && parsed.entries.length > 0) {
           diskCache = parsed;
-          logger.info(`Loaded AMFI AUM disk cache with ${parsed.entries.length} schemes.`);
+          if (parsed.reportDate) this.reportDate = parsed.reportDate;
+
           const cacheAgeMs = Date.now() - new Date(parsed.savedAt || 0).getTime();
-          if (parsed.entries.length >= 1500 && cacheAgeMs < 24 * 60 * 60 * 1000) {
+          const isStale = cacheAgeMs >= 24 * 60 * 60 * 1000;
+
+          if (!isStale) {
             logger.info(`Using warm AMFI AUM disk cache with ${parsed.entries.length} schemes (saved ${Math.round(cacheAgeMs / 60000)}m ago).`);
-            const latestNavDate = await this.resolveLatestNavDate();
-            this.reportDate = latestNavDate || parsed.reportDate;
+            return parsed.entries;
+          } else if (allowBackgroundRefresh) {
+            logger.info(`Using existing AMFI AUM disk cache (${parsed.entries.length} schemes) while triggering background revalidation...`);
+            setTimeout(() => {
+              this.refreshAmfiLiveAumData().catch(e => {
+                logger.warn(`Background AUM refresh failed: ${e.message}`);
+              });
+            }, 1000);
             return parsed.entries;
           }
         }
@@ -715,123 +765,163 @@ class AmfiService {
       logger.warn(`Could not read AMFI AUM disk cache: ${e.message}`);
     }
 
-    const AMFI_QUERY_PAIRS = [
-      // Category 1: Equity
-      { category: 1, subCategory: 1 }, { category: 1, subCategory: 2 }, { category: 1, subCategory: 3 }, { category: 1, subCategory: 4 },
-      { category: 1, subCategory: 5 }, { category: 1, subCategory: 6 }, { category: 1, subCategory: 7 }, { category: 1, subCategory: 8 },
-      { category: 1, subCategory: 9 }, { category: 1, subCategory: 10 }, { category: 1, subCategory: 11 }, { category: 1, subCategory: 12 },
-      { category: 1, subCategory: 44 }, { category: 1, subCategory: 45 },
+    return this.refreshAmfiLiveAumData();
+  }
 
-      // Category 2: Debt (Liquid, Overnight, Gilt, Money Market, Corporate Bond, etc.)
-      { category: 2, subCategory: 13 }, { category: 2, subCategory: 14 }, { category: 2, subCategory: 15 }, { category: 2, subCategory: 16 },
-      { category: 2, subCategory: 17 }, { category: 2, subCategory: 18 }, { category: 2, subCategory: 19 }, { category: 2, subCategory: 20 },
-      { category: 2, subCategory: 21 }, { category: 2, subCategory: 22 }, { category: 2, subCategory: 23 }, { category: 2, subCategory: 24 },
-      { category: 2, subCategory: 25 }, { category: 2, subCategory: 26 }, { category: 2, subCategory: 28 }, { category: 2, subCategory: 29 },
-      { category: 2, subCategory: 46 },
+  async refreshAmfiLiveAumData() {
+    if (this._inFlightAumRefresh) return this._inFlightAumRefresh;
 
-      // Category 3: Hybrid (Aggressive, Conservative, Arbitrage, Balanced Advantage, etc.)
-      { category: 3, subCategory: 30 }, { category: 3, subCategory: 31 }, { category: 3, subCategory: 32 }, { category: 3, subCategory: 33 },
-      { category: 3, subCategory: 34 }, { category: 3, subCategory: 35 }, { category: 3, subCategory: 40 },
-
-      // Category 4: Solution Oriented (Children, Retirement)
-      { category: 4, subCategory: 36 }, { category: 4, subCategory: 37 }, { category: 4, subCategory: 39 },
-
-      // Category 5: Other (Index Funds, ETFs, FoFs)
-      { category: 5, subCategory: 38 }, { category: 5, subCategory: 39 }
-    ];
-
-    const candidateDates = [];
-    const today = new Date();
-    for (let dayOffset = 0; dayOffset <= 6; dayOffset++) {
-      const candidateDate = new Date(today);
-      candidateDate.setDate(today.getDate() - dayOffset);
-      candidateDates.push(formatAmfiDate(candidateDate));
-    }
-
-    const collectedMap = new Map();
-    let resolvedDate = null;
-
-    await pMap(AMFI_QUERY_PAIRS, async (p) => {
-      for (const dateStr of candidateDates) {
-        try {
-          const res = await fetch('https://www.amfiindia.com/gateway/pollingsebi/api/amfi/fundperformance', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-              'Origin': 'https://www.amfiindia.com',
-              'Referer': 'https://www.amfiindia.com/polling/amfi/'
-            },
-            body: JSON.stringify({
-              maturityType: 1,
-              category: p.category,
-              subCategory: p.subCategory,
-              mfid: 0,
-              reportDate: dateStr
-            }),
-            signal: AbortSignal.timeout(6000)
-          });
-
-          if (res.ok) {
-            const json = await res.json();
-            const list = json.data || [];
-            if (list.length > 0) {
-              if (!resolvedDate) resolvedDate = dateStr;
-              list.forEach(item => {
-                if (item.schemeName) {
-                  const rawAum = (item.dailyAUM !== null && item.dailyAUM !== undefined && item.dailyAUM !== '')
-                    ? item.dailyAUM
-                    : ((item.preMonthAvgAUM !== null && item.preMonthAvgAUM !== undefined && item.preMonthAvgAUM !== '')
-                      ? item.preMonthAvgAUM
-                      : item.preMonthAUM);
-                  const parsedAum = (rawAum !== null && rawAum !== undefined && rawAum !== '' && !isNaN(Number(rawAum))) ? Number(rawAum) : null;
-                  collectedMap.set(item.schemeName, {
-                    rawName: item.schemeName,
-                    cleanName: cleanSchemeName(item.schemeName),
-                    dailyAUM: parsedAum,
-                    benchmark: item.benchmark ? String(item.benchmark).trim() : 'N/A',
-                    riskometerScheme: item.riskometerScheme ? String(item.riskometerScheme).trim() : 'N/A',
-                    navRegular: item.navRegular ? Number(item.navRegular) : null,
-                    navDirect: item.navDirect ? Number(item.navDirect) : null
-                  });
-                }
-              });
-              break;
-            }
-          }
-        } catch (err) {}
-      }
-    }, 6);
-
-    let amfiEntries = Array.from(collectedMap.values());
-
-    if (amfiEntries.length >= 1000) {
+    this._inFlightAumRefresh = (async () => {
       try {
-        if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
-        fs.writeFileSync(AUM_CACHE_FILE, JSON.stringify({
-          savedAt: new Date().toISOString(),
-          reportDate: resolvedDate,
-          entries: amfiEntries
-        }), 'utf-8');
-        logger.info(`Persisted ${amfiEntries.length} complete AMFI AUM entries across all categories to disk cache.`);
-      } catch (err) {
-        logger.warn(`Failed to write AMFI AUM cache to disk: ${err.message}`);
+        const AMFI_QUERY_PAIRS = [
+          // Category 1: Equity
+          { category: 1, subCategory: 1 }, { category: 1, subCategory: 2 }, { category: 1, subCategory: 3 }, { category: 1, subCategory: 4 },
+          { category: 1, subCategory: 5 }, { category: 1, subCategory: 6 }, { category: 1, subCategory: 7 }, { category: 1, subCategory: 8 },
+          { category: 1, subCategory: 9 }, { category: 1, subCategory: 10 }, { category: 1, subCategory: 11 }, { category: 1, subCategory: 12 },
+          { category: 1, subCategory: 44 }, { category: 1, subCategory: 45 },
+
+          // Category 2: Debt (Liquid, Overnight, Gilt, Money Market, Corporate Bond, etc.)
+          { category: 2, subCategory: 13 }, { category: 2, subCategory: 14 }, { category: 2, subCategory: 15 }, { category: 2, subCategory: 16 },
+          { category: 2, subCategory: 17 }, { category: 2, subCategory: 18 }, { category: 2, subCategory: 19 }, { category: 2, subCategory: 20 },
+          { category: 2, subCategory: 21 }, { category: 2, subCategory: 22 }, { category: 2, subCategory: 23 }, { category: 2, subCategory: 24 },
+          { category: 2, subCategory: 25 }, { category: 2, subCategory: 26 }, { category: 2, subCategory: 28 }, { category: 2, subCategory: 29 },
+          { category: 2, subCategory: 46 },
+
+          // Category 3: Hybrid (Aggressive, Conservative, Arbitrage, Balanced Advantage, etc.)
+          { category: 3, subCategory: 30 }, { category: 3, subCategory: 31 }, { category: 3, subCategory: 32 }, { category: 3, subCategory: 33 },
+          { category: 3, subCategory: 34 }, { category: 3, subCategory: 35 }, { category: 3, subCategory: 40 },
+
+          // Category 4: Solution Oriented (Children, Retirement)
+          { category: 4, subCategory: 36 }, { category: 4, subCategory: 37 }, { category: 4, subCategory: 39 },
+
+          // Category 5: Other (Index Funds, ETFs, FoFs)
+          { category: 5, subCategory: 38 }, { category: 5, subCategory: 39 }
+        ];
+
+        const candidateDates = [];
+        const today = new Date();
+        for (let dayOffset = 0; dayOffset <= 5; dayOffset++) {
+          const candidateDate = new Date(today);
+          candidateDate.setDate(today.getDate() - dayOffset);
+          candidateDates.push(formatAmfiDate(candidateDate));
+        }
+
+        // Fast Probe: Test 1 category against candidate dates to find active published reportDate
+        let resolvedDate = null;
+        for (const dateStr of candidateDates) {
+          try {
+            const res = await fetch('https://www.amfiindia.com/gateway/pollingsebi/api/amfi/fundperformance', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Origin': 'https://www.amfiindia.com',
+                'Referer': 'https://www.amfiindia.com/polling/amfi/'
+              },
+              body: JSON.stringify({
+                maturityType: 1,
+                category: 1,
+                subCategory: 1,
+                mfid: 0,
+                reportDate: dateStr
+              }),
+              signal: AbortSignal.timeout(4000)
+            });
+
+            if (res.ok) {
+              const json = await res.json();
+              if (json.data && json.data.length > 0) {
+                resolvedDate = dateStr;
+                break;
+              }
+            }
+          } catch (err) {}
+        }
+
+        const datesToQuery = resolvedDate ? [resolvedDate] : candidateDates.slice(0, 2);
+        const collectedMap = new Map();
+
+        await pMap(AMFI_QUERY_PAIRS, async (p) => {
+          for (const dateStr of datesToQuery) {
+            try {
+              const res = await fetch('https://www.amfiindia.com/gateway/pollingsebi/api/amfi/fundperformance', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                  'Origin': 'https://www.amfiindia.com',
+                  'Referer': 'https://www.amfiindia.com/polling/amfi/'
+                },
+                body: JSON.stringify({
+                  maturityType: 1,
+                  category: p.category,
+                  subCategory: p.subCategory,
+                  mfid: 0,
+                  reportDate: dateStr
+                }),
+                signal: AbortSignal.timeout(5000)
+              });
+
+              if (res.ok) {
+                const json = await res.json();
+                const list = json.data || [];
+                if (list.length > 0) {
+                  list.forEach(item => {
+                    if (item.schemeName) {
+                      const rawAum = (item.dailyAUM !== null && item.dailyAUM !== undefined && item.dailyAUM !== '')
+                        ? item.dailyAUM
+                        : ((item.preMonthAvgAUM !== null && item.preMonthAvgAUM !== undefined && item.preMonthAvgAUM !== '')
+                          ? item.preMonthAvgAUM
+                          : item.preMonthAUM);
+                      const parsedAum = (rawAum !== null && rawAum !== undefined && rawAum !== '' && !isNaN(Number(rawAum))) ? Number(rawAum) : null;
+                      collectedMap.set(item.schemeName, {
+                        rawName: item.schemeName,
+                        cleanName: cleanSchemeName(item.schemeName),
+                        dailyAUM: parsedAum,
+                        benchmark: item.benchmark ? String(item.benchmark).trim() : 'N/A',
+                        riskometerScheme: item.riskometerScheme ? String(item.riskometerScheme).trim() : 'N/A',
+                        navRegular: item.navRegular ? Number(item.navRegular) : null,
+                        navDirect: item.navDirect ? Number(item.navDirect) : null
+                      });
+                    }
+                  });
+                  break;
+                }
+              }
+            } catch (err) {}
+          }
+        }, 8);
+
+        let amfiEntries = Array.from(collectedMap.values());
+
+        if (amfiEntries.length >= 1000) {
+          try {
+            if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+            fs.writeFileSync(AUM_CACHE_FILE, JSON.stringify({
+              savedAt: new Date().toISOString(),
+              reportDate: resolvedDate,
+              entries: amfiEntries
+            }), 'utf-8');
+            logger.info(`Persisted ${amfiEntries.length} complete AMFI AUM entries across all categories to disk cache.`);
+          } catch (err) {
+            logger.warn(`Failed to write AMFI AUM cache to disk: ${err.message}`);
+          }
+        } else if (diskCache && Array.isArray(diskCache.entries) && diskCache.entries.length > 0) {
+          amfiEntries = diskCache.entries;
+          resolvedDate = diskCache.reportDate;
+        }
+
+        if (resolvedDate) {
+          this.reportDate = resolvedDate;
+        }
+
+        return amfiEntries;
+      } finally {
+        this._inFlightAumRefresh = null;
       }
-    } else if (diskCache && Array.isArray(diskCache.entries) && diskCache.entries.length > 0) {
-      logger.info(`Using disk-cached ${diskCache.entries.length} AMFI AUM entries.`);
-      amfiEntries = diskCache.entries;
-      resolvedDate = diskCache.reportDate;
-    }
+    })();
 
-    // Resolve latest published NAV date across Indian mutual funds
-    const latestNavDate = await this.resolveLatestNavDate();
-    if (latestNavDate) {
-      this.reportDate = latestNavDate;
-    } else if (resolvedDate) {
-      this.reportDate = resolvedDate;
-    }
-
-    return amfiEntries;
+    return this._inFlightAumRefresh;
   }
 
   /**
@@ -852,31 +942,57 @@ class AmfiService {
         // 1. Fetch live AMFI AUM dataset across all categories
         const amfiList = await this.fetchAmfiLiveAumData();
 
-        // 2. Fetch full master scheme directory directly from official AMFI NAVAll.txt with persistent disk fallback
+        // 2. Fetch full master scheme directory directly from official AMFI NAVAll.txt with instant disk cache fast-boot
         let text = '';
-        try {
-          const res = await fetch('https://www.amfiindia.com/spages/NAVAll.txt', {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-            signal: AbortSignal.timeout(20000)
-          });
-          if (res.ok) {
-            text = await res.text();
-            if (text && text.length > 1000) {
+        if (fs.existsSync(NAVALL_CACHE_FILE)) {
+          try {
+            text = fs.readFileSync(NAVALL_CACHE_FILE, 'utf-8');
+            logger.info(`Fast-boot: Loaded master scheme list from disk cache (${NAVALL_CACHE_FILE}).`);
+            
+            // Check for newer NAVAll.txt in background without blocking server boot
+            setTimeout(async () => {
               try {
-                if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
-                fs.writeFileSync(NAVALL_CACHE_FILE, text, 'utf-8');
-              } catch (writeErr) {
-                logger.warn(`Could not persist navall_cache.txt: ${writeErr.message}`);
+                const res = await fetch('https://www.amfiindia.com/spages/NAVAll.txt', {
+                  headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+                  signal: AbortSignal.timeout(15000)
+                });
+                if (res.ok) {
+                  const freshText = await res.text();
+                  if (freshText && freshText.length > 1000) {
+                    if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+                    fs.writeFileSync(NAVALL_CACHE_FILE, freshText, 'utf-8');
+                    logger.info('Background update: Persisted fresh NAVAll.txt from AMFI to disk cache.');
+                  }
+                }
+              } catch (bgErr) {
+                logger.warn(`Background NAVAll.txt refresh notice: ${bgErr.message}`);
               }
-            }
+            }, 5000);
+          } catch (readErr) {
+            logger.warn(`Could not read cached NAVAll.txt: ${readErr.message}`);
           }
-        } catch (fetchErr) {
-          logger.warn(`Could not fetch live NAVAll.txt from AMFI: ${fetchErr.message}. Attempting disk cache fallback...`);
         }
 
-        if (!text && fs.existsSync(NAVALL_CACHE_FILE)) {
-          text = fs.readFileSync(NAVALL_CACHE_FILE, 'utf-8');
-          logger.info(`Loaded master scheme list from disk cache (${NAVALL_CACHE_FILE}).`);
+        if (!text) {
+          try {
+            const res = await fetch('https://www.amfiindia.com/spages/NAVAll.txt', {
+              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+              signal: AbortSignal.timeout(15000)
+            });
+            if (res.ok) {
+              text = await res.text();
+              if (text && text.length > 1000) {
+                try {
+                  if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+                  fs.writeFileSync(NAVALL_CACHE_FILE, text, 'utf-8');
+                } catch (writeErr) {
+                  logger.warn(`Could not persist navall_cache.txt: ${writeErr.message}`);
+                }
+              }
+            }
+          } catch (fetchErr) {
+            logger.warn(`Could not fetch live NAVAll.txt from AMFI: ${fetchErr.message}. Attempting disk cache fallback...`);
+          }
         }
 
         if (!text) throw new Error('Failed to retrieve master scheme list from AMFI and no disk cache available.');
@@ -1244,7 +1360,7 @@ class AmfiService {
         const url = `https://portal.amfiindia.com/DownloadNAVHistoryReport_Po.aspx?frmdt=${fromStr}&todt=${toStr}`;
         const res = await fetch(url, {
           headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-          signal: AbortSignal.timeout(30000)
+          signal: AbortSignal.timeout(6000)
         });
         if (!res.ok) {
           this.failedDateWindows.set(key, Date.now());
@@ -1414,7 +1530,8 @@ class AmfiService {
 
     if (missingTargets.length > 0) {
       let hadFailure = false;
-      for (const tDate of missingTargets) {
+      const windowsToFetch = missingTargets.slice(0, 3);
+      await Promise.all(windowsToFetch.map(async (tDate) => {
         const sDate = new Date(tDate);
         sDate.setDate(sDate.getDate() - 10);
         const fromStr = formatAmfiDate(sDate);
@@ -1425,14 +1542,14 @@ class AmfiService {
         const lastFailed = this.failedDateWindows.get(windowKey);
         if (lastFailed && (Date.now() - lastFailed < 5 * 60 * 1000)) {
           hadFailure = true;
-          continue;
+          return;
         }
 
         await this.fetchAmfiPortalDateWindow(fromStr, toStr);
         if (this.failedDateWindows.has(windowKey)) {
           hadFailure = true;
         }
-      }
+      }));
 
       // Re-read updated records from cache after window fetch
       const updatedCache = this.navHistoryCache.get(code);
@@ -1544,41 +1661,24 @@ class AmfiService {
       }
     }
 
-    // If continuous history is required (e.g. for SIP calculation), MFAPI provides complete daily NAVs
-    if (requireContinuous) {
-      try {
-        const mfapiList = await this.fetchMfapiNavHistory(code);
-        if (mfapiList && mfapiList.length > 0) {
-          return mfapiList;
-        }
-      } catch (mfErr) {
-        logger.warn(`MFAPI fetch error for scheme code ${code}: ${mfErr.message}`);
-      }
-    }
-
-    try {
-      const list = await this.fetchOfficialAmfiNavHistory(code, minRequiredDate);
-      if (list && list.length > 0) {
-        if (requireContinuous && !this.isNavListContinuous(list)) {
-          const mfapiList = await this.fetchMfapiNavHistory(code);
-          if (mfapiList && mfapiList.length > 0) {
-            return mfapiList;
-          }
-        }
-        return list;
-      }
-    } catch (err) {
-      logger.warn(`Failed to fetch official AMFI NAV history for scheme code ${code}: ${err.message}`);
-    }
-
-    // Direct fallback to MFAPI if AMFI returned empty or failed
+    // 1. PRIMARY FAST FETCH: MFAPI CDN (returns complete 10-15Y continuous daily history in ~200-500ms)
     try {
       const mfapiList = await this.fetchMfapiNavHistory(code);
       if (mfapiList && mfapiList.length > 0) {
         return mfapiList;
       }
     } catch (mfErr) {
-      logger.warn(`MFAPI fallback error for scheme code ${code}: ${mfErr.message}`);
+      logger.warn(`MFAPI fast fetch failed for scheme code ${code}: ${mfErr.message}. Attempting AMFI fallback...`);
+    }
+
+    // 2. FALLBACK: Official AMFI portal window fetch (only if MFAPI is down or empty)
+    try {
+      const list = await this.fetchOfficialAmfiNavHistory(code, minRequiredDate);
+      if (list && list.length > 0) {
+        return list;
+      }
+    } catch (err) {
+      logger.warn(`Failed to fetch official AMFI NAV history for scheme code ${code}: ${err.message}`);
     }
 
     if (cached) return cached.navList;
