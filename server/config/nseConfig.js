@@ -1,7 +1,7 @@
 /**
  * Central Configuration for Official NSE Indices
  * Benchmark identifiers established from official NSE Indices (niftyindices.com / NSE India)
- * Total 42 Official Benchmarks covering Broad Market, Sectoral, and Thematic/Strategy
+ * Total 64 Official Benchmarks covering Broad Market, Sectoral, Thematic/Strategy, and Fixed Income & Debt
  */
 
 const NSE_INDICES = [
@@ -429,6 +429,275 @@ const NSE_INDICES = [
     subCategory: "Dividend Yield",
     source: "NSE Indices",
     description: "High dividend-yielding companies with strong fundamental track record"
+  },
+  // --- FIXED INCOME & DEBT BENCHMARKS (22) ---
+  {
+    id: "NIFTY CORPORATE BOND INDEX A-II",
+    displayName: "NIFTY Corporate Bond Index A-II",
+    officialName: "Nifty Corporate Bond Index A-II",
+    apiName: "Nifty Corporate Bond Index A-II",
+    category: "Debt",
+    subCategory: "Corporate Bond",
+    benchmarkCode: "NSE_D_1378",
+    source: "NSE Indices",
+    description: "SEBI Tier 1 benchmark for corporate bond mutual funds (PRC Class A-II)",
+    isFixedIncomeFactsheet: true,
+    factsheetYield: 0.0748
+  },
+  {
+    id: "NIFTY CORPORATE BOND INDEX",
+    displayName: "NIFTY Corporate Bond Index",
+    officialName: "Nifty Corporate Bond Index",
+    apiName: "Nifty Corporate Bond Index",
+    category: "Debt",
+    subCategory: "Corporate Bond",
+    benchmarkCode: "NSE_D_177",
+    source: "NSE Indices",
+    description: "Broad benchmark representing the Indian corporate bond market",
+    isFixedIncomeFactsheet: true,
+    factsheetYield: 0.0784
+  },
+  {
+    id: "NIFTY CREDIT RISK BOND INDEX",
+    displayName: "NIFTY Credit Risk Bond Index",
+    officialName: "Nifty Credit Risk Bond Index",
+    apiName: "Nifty Credit Risk Bond Index",
+    category: "Debt",
+    subCategory: "Credit Risk",
+    benchmarkCode: "NSE_D_161",
+    source: "NSE Indices",
+    description: "SEBI benchmark for credit risk funds tracking AA and below corporate bonds",
+    isFixedIncomeFactsheet: true,
+    factsheetYield: 0.0834
+  },
+  {
+    id: "NIFTY BANKING & PSU DEBT INDEX",
+    displayName: "NIFTY Banking & PSU Debt Index",
+    officialName: "Nifty Banking & PSU Debt Index",
+    apiName: "Nifty Banking & PSU Debt Index",
+    category: "Debt",
+    subCategory: "Banking & PSU",
+    benchmarkCode: "NSE_D_172",
+    source: "NSE Indices",
+    description: "SEBI benchmark for banking and public sector undertaking debt mutual funds",
+    isFixedIncomeFactsheet: true,
+    factsheetYield: 0.0738
+  },
+  {
+    id: "NIFTY COMPOSITE DEBT INDEX",
+    displayName: "NIFTY Composite Debt Index",
+    officialName: "Nifty Composite Debt Index",
+    apiName: "Nifty Composite Debt Index",
+    category: "Debt",
+    subCategory: "Composite Debt",
+    benchmarkCode: "NSE_D_214",
+    source: "NSE Indices",
+    description: "Comprehensive benchmark tracking government securities and corporate bonds",
+    isFixedIncomeFactsheet: true,
+    factsheetYield: 0.0748
+  },
+  {
+    id: "NIFTY MEDIUM TO LONG DURATION DEBT INDEX",
+    displayName: "NIFTY Medium to Long Duration Debt Index",
+    officialName: "Nifty Medium to Long Duration Debt Index",
+    apiName: "Nifty Medium to Long Duration Debt Index",
+    category: "Debt",
+    subCategory: "Medium to Long Duration",
+    benchmarkCode: "NSE_D_210",
+    source: "NSE Indices",
+    description: "SEBI benchmark for medium to long duration debt funds (Macaulay 4-7 yrs)",
+    isFixedIncomeFactsheet: true,
+    factsheetYield: 0.0739
+  },
+  {
+    id: "NIFTY LONG DURATION DEBT INDEX",
+    displayName: "NIFTY Long Duration Debt Index",
+    officialName: "Nifty Long Duration Debt Index",
+    apiName: "Nifty Long Duration Debt Index",
+    category: "Debt",
+    subCategory: "Long Duration",
+    benchmarkCode: "NSE_D_322",
+    source: "NSE Indices",
+    description: "SEBI benchmark for long duration debt funds (Macaulay > 7 yrs)",
+    isFixedIncomeFactsheet: true,
+    factsheetYield: 0.0746
+  },
+  {
+    id: "NIFTY MEDIUM DURATION DEBT INDEX",
+    displayName: "NIFTY Medium Duration Debt Index",
+    officialName: "Nifty Medium Duration Debt Index",
+    apiName: "Nifty Medium Duration Debt Index",
+    category: "Debt",
+    subCategory: "Medium Duration",
+    benchmarkCode: "NSE_D_169",
+    source: "NSE Indices",
+    description: "SEBI benchmark for medium duration debt funds (Macaulay 3-4 yrs)",
+    isFixedIncomeFactsheet: true,
+    factsheetYield: 0.0761
+  },
+  {
+    id: "NIFTY SHORT DURATION DEBT INDEX",
+    displayName: "NIFTY Short Duration Debt Index",
+    officialName: "Nifty Short Duration Debt Index",
+    apiName: "Nifty Short Duration Debt Index",
+    category: "Debt",
+    subCategory: "Short Duration",
+    benchmarkCode: "NSE_D_170",
+    source: "NSE Indices",
+    description: "SEBI benchmark for short duration debt funds (Macaulay 1-3 yrs)",
+    isFixedIncomeFactsheet: true,
+    factsheetYield: 0.0737
+  },
+  {
+    id: "NIFTY LOW DURATION DEBT INDEX",
+    displayName: "NIFTY Low Duration Debt Index",
+    officialName: "Nifty Low Duration Debt Index",
+    apiName: "Nifty Low Duration Debt Index",
+    category: "Debt",
+    subCategory: "Low Duration",
+    benchmarkCode: "NSE_D_173",
+    source: "NSE Indices",
+    description: "SEBI benchmark for low duration debt funds (Macaulay 6-12 months)",
+    isFixedIncomeFactsheet: true,
+    factsheetYield: 0.0727
+  },
+  {
+    id: "NIFTY ULTRA SHORT DURATION DEBT INDEX",
+    displayName: "NIFTY Ultra Short Duration Debt Index",
+    officialName: "Nifty Ultra Short Duration Debt Index",
+    apiName: "Nifty Ultra Short Duration Debt Index",
+    category: "Debt",
+    subCategory: "Ultra Short Duration",
+    benchmarkCode: "NSE_D_208",
+    source: "NSE Indices",
+    description: "SEBI benchmark for ultra short duration debt funds (Macaulay 3-6 months)",
+    isFixedIncomeFactsheet: true,
+    factsheetYield: 0.0735
+  },
+  {
+    id: "NIFTY MONEY MARKET INDEX",
+    displayName: "NIFTY Money Market Index",
+    officialName: "Nifty Money Market Index",
+    apiName: "Nifty Money Market Index",
+    category: "Debt",
+    subCategory: "Money Market",
+    benchmarkCode: "NSE_D_310",
+    source: "NSE Indices",
+    description: "SEBI benchmark for money market mutual funds (Maturity up to 1 yr)",
+    isFixedIncomeFactsheet: true,
+    factsheetYield: 0.0707
+  },
+  {
+    id: "NIFTY LIQUID INDEX",
+    displayName: "NIFTY Liquid Index",
+    officialName: "Nifty Liquid Index",
+    apiName: "Nifty Liquid Index",
+    category: "Debt",
+    subCategory: "Liquid",
+    benchmarkCode: "NSE_D_345",
+    source: "NSE Indices",
+    description: "SEBI benchmark for liquid mutual funds (Maturity up to 91 days)",
+    isFixedIncomeFactsheet: true,
+    factsheetYield: 0.0690
+  },
+  {
+    id: "NIFTY 1D RATE INDEX",
+    displayName: "NIFTY 1D Rate Index",
+    officialName: "Nifty 1D rate index",
+    apiName: "Nifty 1D rate index",
+    category: "Debt",
+    subCategory: "Overnight",
+    benchmarkCode: "NSE_D_442",
+    source: "NSE Indices",
+    description: "Tracks overnight risk-free call rate and TREPS returns"
+  },
+  {
+    id: "NIFTY 10 YR BENCHMARK G-SEC",
+    displayName: "NIFTY 10 yr Benchmark G-Sec",
+    officialName: "Nifty 10 yr Benchmark G-Sec",
+    apiName: "Nifty 10 yr Benchmark G-Sec",
+    category: "Debt",
+    subCategory: "Gilt / Sovereign",
+    benchmarkCode: "NSE_D_19",
+    source: "NSE Indices",
+    description: "Tracks the performance of the current 10-year on-the-run Government of India bond"
+  },
+  {
+    id: "NIFTY COMPOSITE G-SEC INDEX",
+    displayName: "NIFTY Composite G-sec Index",
+    officialName: "Nifty Composite G-sec Index",
+    apiName: "Nifty Composite G-sec Index",
+    category: "Debt",
+    subCategory: "Gilt / Sovereign",
+    benchmarkCode: "NSE_D_9",
+    source: "NSE Indices",
+    description: "Comprehensive benchmark tracking sovereign Government of India securities across maturities"
+  },
+  {
+    id: "NIFTY 8-13 YR G-SEC",
+    displayName: "NIFTY 8-13 yr G-Sec",
+    officialName: "Nifty 8-13 yr G-Sec",
+    apiName: "Nifty 8-13 yr G-Sec",
+    category: "Debt",
+    subCategory: "Gilt / Sovereign",
+    benchmarkCode: "NSE_D_1",
+    source: "NSE Indices",
+    description: "Tracks Government of India bonds with residual maturity between 8 and 13 years"
+  },
+  {
+    id: "NIFTY 4-8 YR G-SEC INDEX",
+    displayName: "NIFTY 4-8 yr G-Sec Index",
+    officialName: "Nifty 4-8 yr G-Sec Index",
+    apiName: "Nifty 4-8 yr G-Sec Index",
+    category: "Debt",
+    subCategory: "Gilt / Sovereign",
+    benchmarkCode: "NSE_D_6",
+    source: "NSE Indices",
+    description: "Tracks Government of India bonds with residual maturity between 4 and 8 years"
+  },
+  {
+    id: "NIFTY 10 YEAR SDL INDEX",
+    displayName: "NIFTY 10 Year SDL Index",
+    officialName: "Nifty 10 Year SDL Index",
+    apiName: "Nifty 10 Year SDL Index",
+    category: "Debt",
+    subCategory: "State Development Loan",
+    benchmarkCode: "NSE_D_16",
+    source: "NSE Indices",
+    description: "Tracks 10-year State Development Loans issued by Indian State Governments"
+  },
+  {
+    id: "NIFTY 5YR BENCHMARK G-SEC INDEX",
+    displayName: "NIFTY 5yr Benchmark G-sec Index",
+    officialName: "Nifty 5yr Benchmark G-sec Index",
+    apiName: "Nifty 5yr Benchmark G-sec Index",
+    category: "Debt",
+    subCategory: "Gilt / Sovereign",
+    benchmarkCode: "NSE_D_364",
+    source: "NSE Indices",
+    description: "Tracks the performance of the current 5-year on-the-run Government of India bond"
+  },
+  {
+    id: "NIFTY 11-15 YR G-SEC INDEX",
+    displayName: "NIFTY 11-15 yr G-Sec Index",
+    officialName: "Nifty 11-15 yr G-Sec Index",
+    apiName: "Nifty 11-15 yr G-Sec Index",
+    category: "Debt",
+    subCategory: "Gilt / Sovereign",
+    benchmarkCode: "NSE_D_7",
+    source: "NSE Indices",
+    description: "Tracks Government of India bonds with residual maturity between 11 and 15 years"
+  },
+  {
+    id: "NIFTY 15 YR AND ABOVE G-SEC INDEX",
+    displayName: "NIFTY 15 yr and above G-Sec Index",
+    officialName: "Nifty 15 yr and above G-Sec Index",
+    apiName: "Nifty 15 yr and above G-Sec Index",
+    category: "Debt",
+    subCategory: "Gilt / Sovereign",
+    benchmarkCode: "NSE_D_8",
+    source: "NSE Indices",
+    description: "Tracks long-term Government of India bonds with residual maturity of 15 years or more"
   }
 ];
 

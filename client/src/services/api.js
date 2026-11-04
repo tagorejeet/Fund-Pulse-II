@@ -4,9 +4,10 @@
 
 const API_BASE = '/api';
 
-export const fetchFunds = async ({ category = 'all', search = '', plan = 'regular', option = 'all', page = 1, limit = 50, days, customDays = '33,50,67', startDate, endDate, asOfDate, calculationDate, signal } = {}) => {
+export const fetchFunds = async ({ category = 'all', subCategory = 'all', search = '', plan = 'regular', option = 'all', page = 1, limit = 50, days, customDays = '33,50,67', startDate, endDate, asOfDate, calculationDate, signal } = {}) => {
   const params = new URLSearchParams();
   if (category && category !== 'all') params.append('category', category);
+  if (subCategory && subCategory !== 'all') params.append('subCategory', subCategory);
   if (search && search.trim()) params.append('search', search.trim());
   if (plan) params.append('plan', plan);
   if (option && option !== 'all') params.append('option', option);

@@ -495,9 +495,16 @@ const FundTable = ({
 
                       {/* Category */}
                       <td className="p-3.5 whitespace-nowrap">
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                          {fund.category}
-                        </span>
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                            {fund.category}
+                          </span>
+                          {fund.subCategoryName && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50">
+                              {fund.subCategoryName}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* NAV Column(s) */}

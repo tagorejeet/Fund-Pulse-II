@@ -89,6 +89,8 @@ export function App() {
   });
 
   const [activeCategory, setActiveCategory] = useState('all');
+  const [activeDebtSubCategory, setActiveDebtSubCategory] = useState('all');
+  const [debtSubCategories, setDebtSubCategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -395,7 +397,8 @@ export function App() {
     daysList = customDaysList,
     sDate = startDate,
     eDate = endDate,
-    calcDate = calculationDate
+    calcDate = calculationDate,
+    subCat = activeDebtSubCategory
   ) => {
     const requestId = ++activeRequestIdRef.current;
     if (abortControllerRef.current) {
@@ -409,8 +412,10 @@ export function App() {
     try {
       const formattedDays = Array.isArray(daysList) ? daysList.join(',') : String(daysList);
       const isSearchActive = Boolean(query && query.trim());
+      const isDebt = cat === 'Debt / Liquid' || (cat && cat.toLowerCase().includes('debt'));
       const res = await fetchFunds({
         category: cat,
+        subCategory: isDebt ? subCat : 'all',
         search: query,
         plan,
         option: 'growth',
@@ -430,6 +435,7 @@ export function App() {
       setTotalFunds(res.data.total || 0);
       setTotalPages(res.data.totalPages || 1);
       if (res.data.categories) setCategoriesList(res.data.categories);
+      if (res.data.debtSubCategories) setDebtSubCategories(res.data.debtSubCategories);
 
       setMeta({
         reportDate: res.data.reportDate,
@@ -446,7 +452,7 @@ export function App() {
         setIsLoading(false);
       }
     }
-  }, [activeCategory, debouncedSearchQuery, selectedPlan, page, customDaysList, startDate, endDate, calculationDate]);
+  }, [activeCategory, activeDebtSubCategory, debouncedSearchQuery, selectedPlan, page, customDaysList, startDate, endDate, calculationDate]);
 
   // Load Batch Schemes for Custom Fund List
   const [customFundsError, setCustomFundsError] = useState(null);
@@ -524,8 +530,8 @@ export function App() {
 
   // Initial Load & Effect triggers
   useEffect(() => {
-    loadFunds(activeCategory, debouncedSearchQuery, selectedPlan, page, customDaysList, startDate, endDate, calculationDate);
-  }, [activeCategory, debouncedSearchQuery, selectedPlan, page, customDaysList, startDate, endDate, calculationDate, loadFunds]);
+    loadFunds(activeCategory, debouncedSearchQuery, selectedPlan, page, customDaysList, startDate, endDate, calculationDate, activeDebtSubCategory);
+  }, [activeCategory, activeDebtSubCategory, debouncedSearchQuery, selectedPlan, page, customDaysList, startDate, endDate, calculationDate, loadFunds]);
 
   // Load custom funds when custom tab is active, or gently preload after initial mount
   useEffect(() => {
@@ -883,16 +889,25 @@ export function App() {
             {/* Tab 1: All Schemes View */}
             {activeTab === 'all' && (
               <div className="space-y-4">
-                {/* Category Navigation Tabs */}
+                {/* Category Navigation Tabs & Debt Subcategory Selector */}
                 <CategoryFilter
                   activeCategory={activeCategory}
                   onSelectCategory={(cat) => {
                     setActiveCategory(cat);
+                    if (cat !== 'Debt / Liquid' && !cat.toLowerCase().includes('debt')) {
+                      setActiveDebtSubCategory('all');
+                    }
                     setPage(1);
                   }}
                   categoriesList={categoriesList}
                   categoryCounts={categoryCountsMap}
                   totalSchemesCount={totalFunds}
+                  activeDebtSubCategory={activeDebtSubCategory}
+                  onSelectDebtSubCategory={(subCat) => {
+                    setActiveDebtSubCategory(subCat);
+                    setPage(1);
+                  }}
+                  debtSubCategories={debtSubCategories}
                 />
 
                 {/* Main Master Fund Performance Table */}

@@ -101,10 +101,11 @@ const NseIndicesTable = ({
   const [activeCategory, setActiveCategory] = useState('all');
 
   const categoryCounts = useMemo(() => {
-    const counts = { all: indices.length, 'Broad Market': 0, 'Sectoral': 0, 'Thematic': 0 };
+    const counts = { all: indices.length, 'Broad Market': 0, 'Sectoral': 0, 'Thematic': 0, 'Debt': 0 };
     indices.forEach(idx => {
       if (idx.category === 'Broad Market') counts['Broad Market']++;
       else if (idx.category === 'Sectoral') counts['Sectoral']++;
+      else if (idx.category === 'Debt' || idx.category === 'Fixed Income') counts['Debt']++;
       else counts['Thematic']++;
     });
     return counts;
@@ -117,6 +118,8 @@ const NseIndicesTable = ({
       if (activeCategory !== 'all') {
         if (activeCategory === 'Thematic') {
           if (idx.category !== 'Thematic' && idx.category !== 'Strategy') return false;
+        } else if (activeCategory === 'Debt') {
+          if (idx.category !== 'Debt' && idx.category !== 'Fixed Income') return false;
         } else if (idx.category !== activeCategory) {
           return false;
         }
@@ -391,6 +394,20 @@ const NseIndicesTable = ({
               {categoryCounts['Thematic']}
             </span>
           </button>
+
+          <button
+            onClick={() => setActiveCategory('Debt')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+              activeCategory === 'Debt'
+                ? 'bg-emerald-700 text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            <span>Debt & Fixed Income</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-slate-800/90 text-emerald-700 dark:text-emerald-300 font-mono">
+              {categoryCounts['Debt']}
+            </span>
+          </button>
         </div>
 
         <div className="text-xs text-slate-500 dark:text-slate-400 px-2 font-medium">
@@ -480,7 +497,7 @@ const NseIndicesTable = ({
                           <div>
                             <div className="text-slate-900 dark:text-white font-bold text-sm tracking-tight flex items-center gap-2">
                               {idx.displayName}
-                              {idx.dayChangePct !== null && (
+                              {idx.dayChangePct !== null && idx.dayChangePct !== undefined && !isNaN(idx.dayChangePct) && (
                                 <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-semibold ${
                                   idx.dayChangePct >= 0 ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
                                 }`}>

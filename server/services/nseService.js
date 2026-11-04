@@ -51,6 +51,10 @@ function loadDiskCache() {
         memoryCache = parsed;
         memoryCache.isCached = true;
         logger.info(`Loaded NSE index cache from disk. Last updated: ${memoryCache.lastUpdated}`);
+        const didSync = syncFactsheetIndicesWithLatestTradingDays();
+        if (didSync) {
+          saveDiskCache();
+        }
       }
     }
   } catch (err) {
@@ -182,17 +186,86 @@ async function fetchOfficialNseIndexHistory(indexName, fromStr, toStr) {
   });
 }
 
+// Automatically sync offline factsheet-calibrated debt indices with the latest active trading dates from NIFTY 50
+function syncFactsheetIndicesWithLatestTradingDays() {
+  if (!memoryCache || !memoryCache.data) return false;
+  const n50Records = memoryCache.data['NIFTY 50'];
+  if (!n50Records || n50Records.length === 0) return false;
+
+  const latestTradingRec = n50Records[0];
+  const latestTradingDate = new Date(latestTradingRec.date);
+  let anySynced = false;
+
+  for (const item of NSE_INDICES) {
+    if (!item.isFixedIncomeFactsheet) continue;
+    const records = memoryCache.data[item.id];
+    if (!records || records.length === 0) continue;
+
+    const latestDebtRec = records[0];
+    const latestDebtDate = new Date(latestDebtRec.date);
+
+    if (latestTradingDate.getTime() > latestDebtDate.getTime()) {
+      const missingSessions = [];
+      for (const nRec of n50Records) {
+        const d = new Date(nRec.date);
+        if (d.getTime() > latestDebtDate.getTime() && d.getTime() <= latestTradingDate.getTime()) {
+          missingSessions.push(nRec);
+        } else {
+          break;
+        }
+      }
+      if (missingSessions.length === 0) continue;
+      missingSessions.reverse();
+
+      const annYield = item.factsheetYield || 0.0748;
+      let prevVal = latestDebtRec.close;
+      let prevDate = latestDebtDate;
+      const newRecs = [];
+
+      for (const sess of missingSessions) {
+        const sessDate = new Date(sess.date);
+        const daySpan = Math.max(1, (sessDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+        const growth = Math.pow(1 + annYield, daySpan / 365.25);
+        const nextVal = Number((prevVal * growth).toFixed(2));
+        newRecs.push({
+          rawDate: sess.rawDate,
+          date: sess.date,
+          dateStr: sess.dateStr,
+          open: nextVal,
+          high: nextVal,
+          low: nextVal,
+          close: nextVal,
+          indexName: item.officialName || item.displayName
+        });
+        prevVal = nextVal;
+        prevDate = sessDate;
+      }
+
+      newRecs.reverse();
+      memoryCache.data[item.id] = [...newRecs, ...records];
+      logger.info(`Synced ${item.id} with ${newRecs.length} new trading days up to ${latestTradingRec.dateStr}`);
+      anySynced = true;
+    }
+  }
+
+  if (anySynced) {
+    saveDiskCache();
+  }
+  return anySynced;
+}
+
 // Prime / Refresh all official NSE indices (Broad, Sectoral, Thematic)
 async function refreshAllNseIndices(force = false) {
   const now = Date.now();
   if (!force && memoryCache.lastUpdated && (now - new Date(memoryCache.lastUpdated).getTime() < CACHE_TTL_MS)) {
     const allPresent = NSE_INDICES.every(item => memoryCache.data[item.id] && memoryCache.data[item.id].length > 0);
     if (allPresent) {
+      syncFactsheetIndicesWithLatestTradingDays();
       return memoryCache;
     }
   }
 
-  logger.info(`Refreshing ${NSE_INDICES.length} official NSE indices data from niftyindices.com...`);
+  logger.info(`Refreshing official NSE indices data from niftyindices.com...`);
   const fromDate = '01-Jan-1990';
   const today = new Date();
   const toDate = formatToNseApiDate(today);
@@ -202,6 +275,11 @@ async function refreshAllNseIndices(force = false) {
   for (let i = 0; i < NSE_INDICES.length; i += chunkSize) {
     const chunk = NSE_INDICES.slice(i, i + chunkSize);
     await Promise.all(chunk.map(async (item) => {
+      // Offline factsheet debt indices must NOT be queried via public equity endpoint
+      if (item.isFixedIncomeFactsheet) {
+        return;
+      }
+
       const existing = memoryCache.data[item.id];
       if (!force && existing && existing.length > 0) {
         const latestRec = existing[0];
@@ -210,17 +288,26 @@ async function refreshAllNseIndices(force = false) {
         const oldestTime = oldestRec.date ? new Date(oldestRec.date).getTime() : 0;
         const daysDiff = (today.getTime() - latestTime) / (1000 * 60 * 60 * 24);
         const oldestYear = new Date(oldestTime).getFullYear();
-        // Skip only if data is fresh AND includes complete deep historical depth (back to 2006 or earlier)
-        if (daysDiff <= 3.5 && oldestYear <= 2006) {
+        // Skip only if data is fresh AND includes complete deep historical depth
+        const hasFullDepth = (existing.length >= 2500 || oldestYear <= 2015);
+        if (daysDiff <= 3.5 && hasFullDepth) {
           return;
         }
       }
       try {
         const queryName = item.apiName || item.officialName || item.id;
         const records = await fetchOfficialNseIndexHistory(queryName, fromDate, toDate);
-        if (records && records.length > 0) {
-          memoryCache.data[item.id] = records;
-          logger.info(`Fetched official ${item.id} records: ${records.length} days (oldest: ${records[records.length - 1].dateStr})`);
+        if (records && records.length >= 50) {
+          const latestNewRec = records[0];
+          const newTime = latestNewRec.date ? new Date(latestNewRec.date).getTime() : 0;
+          const newDiffDays = (today.getTime() - newTime) / (1000 * 60 * 60 * 24);
+          // Safeguard: only replace if records are recent (within 60 days) and don't truncate deep history
+          if (newDiffDays <= 60 && (!existing || existing.length < 2000 || records.length >= 500)) {
+            memoryCache.data[item.id] = records;
+            logger.info(`Fetched official ${item.id} records: ${records.length} days (oldest: ${records[records.length - 1].dateStr})`);
+          } else {
+            logger.warn(`Safeguard rejected suspicious API response for ${item.id} (count: ${records.length}, latest: ${latestNewRec.dateStr})`);
+          }
         }
       } catch (err) {
         logger.error(`Error fetching official data for ${item.id}:`, err.message);
@@ -228,6 +315,9 @@ async function refreshAllNseIndices(force = false) {
     }));
     saveDiskCache();
   }
+
+  // Keep factsheet indices in perfect lockstep with the latest trading dates
+  syncFactsheetIndicesWithLatestTradingDays();
 
   if (Object.keys(memoryCache.data).length > 0) {
     memoryCache.lastUpdated = new Date().toISOString();
@@ -323,7 +413,12 @@ async function getNSEIndexData({ asOfDate = null, forceRefresh = false, days = n
   const now = Date.now();
   const isCacheStale = !memoryCache.lastUpdated || (now - new Date(memoryCache.lastUpdated).getTime() >= CACHE_TTL_MS);
   const nifty50Records = memoryCache.data['NIFTY 50'] || [];
-  const needsDeepHistory = nifty50Records.length < 5000;
+  const needsDeepHistory = nifty50Records.length < 2500;
+  const anyIndexMissing = NSE_INDICES.some(item => !memoryCache.data[item.id] || memoryCache.data[item.id].length < 50);
+
+  if (anyIndexMissing) {
+    loadDiskCache();
+  }
 
   if (Object.keys(memoryCache.data).length === 0 || forceRefresh || isCacheStale || needsDeepHistory) {
     await refreshAllNseIndices(forceRefresh || needsDeepHistory);

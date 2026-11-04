@@ -267,12 +267,102 @@ function categorizeScheme(schemeCategory, schemeName) {
   if (cat.includes('elss') || name.includes('elss') || name.includes('tax saver')) return 'ELSS';
   if (cat.includes('dividend yield') || name.includes('dividend yield')) return 'Dividend Yield';
   if (cat.includes('focused') || name.includes('focused')) return 'Focused';
-  if (cat.includes('sectoral') || cat.includes('thematic') || name.includes('consumption') || name.includes('pharma') || name.includes('tech') || name.includes('banking') || name.includes('infra') || name.includes('innovation')) return 'Sectoral / Thematic';
+  if (cat.includes('sectoral') || cat.includes('thematic') || name.includes('consumption') || name.includes('pharma') || name.includes('tech') || (name.includes('banking') && !cat.includes('debt') && !name.includes('psu') && !name.includes('debt')) || name.includes('infra') || name.includes('innovation')) return 'Sectoral / Thematic';
   if (cat.includes('index') || cat.includes('etf') || name.includes('index') || name.includes('nifty') || name.includes('sensex') || name.includes('etf')) return 'Index Funds';
   if (cat.includes('hybrid') || cat.includes('arbitrage') || cat.includes('balanced') || name.includes('hybrid') || name.includes('balanced') || name.includes('arbitrage')) return 'Hybrid';
-  if (cat.includes('liquid') || cat.includes('debt') || cat.includes('money market') || cat.includes('gilt') || cat.includes('overnight') || name.includes('liquid') || name.includes('overnight')) return 'Debt / Liquid';
+  if (cat.includes('debt') || cat.includes('income') || cat.includes('liquid') || cat.includes('money market') || cat.includes('gilt') || cat.includes('overnight') || cat.includes('duration') || cat.includes('bond') || name.includes('liquid') || name.includes('overnight') || name.includes('short term') || name.includes('short duration') || name.includes('low duration') || name.includes('ultra short') || name.includes('money market') || name.includes('corporate bond') || name.includes('credit risk') || name.includes('gilt') || name.includes('floater') || name.includes('floating interest') || name.includes('dynamic bond') || name.includes('banking and psu') || name.includes('banking & psu') || name.includes('medium duration') || name.includes('medium term') || name.includes('long duration') || name.includes('long term')) return 'Debt / Liquid';
   
   return 'Other';
+}
+
+function determineDebtSubCategory(catStr, nameStr) {
+  const c = (catStr || '').toLowerCase();
+  const n = (nameStr || '').toLowerCase();
+
+  if (c.includes('10-year constant maturity') || c.includes('10 year constant duration') || (n.includes('10 year') && n.includes('gilt')) || n.includes('10-year constant maturity')) {
+    return '10 Year Gilt';
+  }
+  if (c.includes('overnight') || n.includes('overnight')) {
+    return 'Overnight';
+  }
+  if (c.includes('liquid') || n.includes('liquid fund') || n.includes(' liquid ')) {
+    return 'Liquid';
+  }
+  if (c.includes('money market') || n.includes('money market')) {
+    return 'Money Market';
+  }
+  if (c.includes('ultra short to short term') || c.includes('low duration') || n.includes('low duration') || n.includes('ultra short to short')) {
+    return 'Ultra Short to Short Term';
+  }
+  if (c.includes('ultra short term') || c.includes('ultra short duration') || n.includes('ultra short term') || n.includes('ultra short duration') || n.includes('ultra short fund')) {
+    return 'Ultra Short Term Fund';
+  }
+  if (c.includes('short duration') || c.includes('short term') || n.includes('short duration') || n.includes('short term')) {
+    return 'Short Term';
+  }
+  if (c.includes('medium to long') || n.includes('medium to long')) {
+    return 'Medium to Long Term';
+  }
+  if (c.includes('medium duration') || c.includes('medium term') || n.includes('medium duration') || n.includes('medium term')) {
+    return 'Medium Term';
+  }
+  if (c.includes('long duration') || c.includes('long term') || n.includes('long duration') || n.includes('long term')) {
+    return 'Long Term';
+  }
+  if (c.includes('corporate bond') || n.includes('corporate bond')) {
+    return 'Corporate Bond';
+  }
+  if (c.includes('credit risk') || n.includes('credit risk')) {
+    return 'Credit Risk';
+  }
+  if (c.includes('banking and psu') || c.includes('banking & psu') || n.includes('banking & psu') || n.includes('banking and psu')) {
+    return 'Banking & PSU';
+  }
+  if (c.includes('floating interest') || c.includes('floater') || n.includes('floating rate') || n.includes('floating interest') || n.includes('floater')) {
+    return 'Floater';
+  }
+  if (c.includes('dynamic bond') || c.includes('dynamic term') || n.includes('dynamic bond') || n.includes('dynamic term')) {
+    return 'Dynamic Bond';
+  }
+  if (c.includes('gilt') || n.includes('gilt')) {
+    return 'Gilt';
+  }
+  return 'Other Debt';
+}
+
+function matchesDebtSubCategory(schemeSubCategory, filterSubCategory, schemeName) {
+  if (!filterSubCategory || filterSubCategory === 'all') return true;
+  
+  const normalize = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const fKey = normalize(filterSubCategory);
+  const sKey = normalize(schemeSubCategory);
+  const nKey = normalize(schemeName);
+
+  if (sKey === fKey) return true;
+
+  const aliasMap = {
+    'shortterm': ['shortduration', 'shortterm'],
+    'liquid': ['liquid'],
+    'overnight': ['overnight'],
+    'moneymarket': ['moneymarket'],
+    'ultrashortterm': ['ultrashorttermfund', 'ultrashortduration', 'ultrashortterm'],
+    'ultrashorttermfund': ['ultrashorttermfund', 'ultrashortduration', 'ultrashortterm'],
+    'lowduration': ['ultrashorttoshortterm', 'lowduration', 'ultrashorttoshort'],
+    'ultrashorttoshortterm': ['ultrashorttoshortterm', 'lowduration', 'ultrashorttoshort'],
+    'mediumterm': ['mediumduration', 'mediumterm'],
+    'mediumtolongterm': ['mediumtolongduration', 'mediumtolongterm'],
+    'longterm': ['longduration', 'longterm'],
+    'corporatebond': ['corporatebond'],
+    'creditrisk': ['creditrisk'],
+    'bankingpsu': ['bankingandpsu', 'bankingpsudebt', 'bankingpsu', 'bankingandpsudebt'],
+    'gilt': ['gilt'],
+    'floater': ['floatinginterestrates', 'floatingrate', 'floater'],
+    'dynamicbond': ['dynamicterm', 'dynamicbond'],
+    '10yeargilt': ['10yearconstantmaturitygilt', '10yearconstantdurationgilt', '10yeargilt']
+  };
+
+  const aliases = aliasMap[fKey] || [fKey];
+  return aliases.some(a => sKey.includes(a) || a.includes(sKey) || nKey.includes(a));
 }
 
 class AmfiService {
@@ -1233,7 +1323,8 @@ class AmfiService {
             // Extract AMC Name from scheme prefix
             const amcParts = baseName.split(' ');
             const amcName = amcParts.length > 2 ? `${amcParts[0]} ${amcParts[1]} Mutual Fund` : 'Mutual Fund';
-            const cat = categorizeScheme('', baseName);
+            const cat = categorizeScheme(s.category, baseName);
+            const subCatName = cat === 'Debt / Liquid' ? determineDebtSubCategory(s.category, baseName) : '';
             const schemeOption = determineSchemeOption(baseName);
             const aumVal = match ? match.dailyAUM : null;
 
@@ -1243,6 +1334,7 @@ class AmfiService {
               amfiSchemeName: baseName,
               amcName,
               category: cat,
+              subCategoryName: subCatName,
               schemeOption,
               subCategoryId: 0,
               regularSchemeCode: isDirect ? null : code,
@@ -1259,6 +1351,12 @@ class AmfiService {
             pairedMap.set(slugId, newItem);
             codeToItemMap.set(code, newItem);
           } else {
+            const cat = categorizeScheme(s.category, baseName);
+            const subCatName = cat === 'Debt / Liquid' ? determineDebtSubCategory(s.category, baseName) : '';
+            if (cat === 'Debt / Liquid' && (!existing.subCategoryName || existing.category === 'Other')) {
+              existing.category = 'Debt / Liquid';
+              existing.subCategoryName = subCatName;
+            }
             if (!existing.amfiMatch) existing.amfiMatch = findAmfiMatch(baseName);
             if (isDirect && !existing.directSchemeCode) {
               existing.directSchemeCode = code;
@@ -1981,9 +2079,45 @@ class AmfiService {
   }
 
   /**
+   * Retrieve official AMFI Debt Subcategories with counts
+   */
+  getDebtSubCategories() {
+    const growthDebtSchemes = this.masterSchemes.filter(s => {
+      const sOpt = s.schemeOption || determineSchemeOption(s.displayName);
+      return sOpt === 'growth' && s.category === 'Debt / Liquid';
+    });
+
+    const subCounts = {};
+    growthDebtSchemes.forEach(s => {
+      const sub = s.subCategoryName || determineDebtSubCategory('', s.displayName);
+      subCounts[sub] = (subCounts[sub] || 0) + 1;
+    });
+
+    return [
+      { id: 'all', name: 'All Sub Categories', count: growthDebtSchemes.length },
+      { id: 'short-term', name: 'Short Term', count: (subCounts['Short Term'] || 0) },
+      { id: 'liquid', name: 'Liquid', count: (subCounts['Liquid'] || 0) },
+      { id: 'overnight', name: 'Overnight', count: (subCounts['Overnight'] || 0) },
+      { id: 'money-market', name: 'Money Market', count: (subCounts['Money Market'] || 0) },
+      { id: 'ultra-short-term', name: 'Ultra Short Term Fund', count: (subCounts['Ultra Short Term Fund'] || 0) },
+      { id: 'low-duration', name: 'Ultra Short to Short Term (Low Duration)', count: (subCounts['Ultra Short to Short Term'] || 0) },
+      { id: 'medium-term', name: 'Medium Term', count: (subCounts['Medium Term'] || 0) },
+      { id: 'medium-to-long-term', name: 'Medium to Long Term', count: (subCounts['Medium to Long Term'] || 0) },
+      { id: 'long-term', name: 'Long Term', count: (subCounts['Long Term'] || 0) },
+      { id: 'corporate-bond', name: 'Corporate Bond', count: (subCounts['Corporate Bond'] || 0) },
+      { id: 'credit-risk', name: 'Credit Risk', count: (subCounts['Credit Risk'] || 0) },
+      { id: 'banking-psu', name: 'Banking & PSU', count: (subCounts['Banking & PSU'] || 0) },
+      { id: 'gilt', name: 'Gilt', count: (subCounts['Gilt'] || 0) },
+      { id: 'floater', name: 'Floater / Floating Rate', count: (subCounts['Floater'] || 0) },
+      { id: 'dynamic-bond', name: 'Dynamic Bond', count: (subCounts['Dynamic Bond'] || 0) },
+      { id: '10-year-gilt', name: '10 Year Gilt', count: (subCounts['10 Year Gilt'] || 0) }
+    ];
+  }
+
+  /**
    * Get filtered and paginated schemes with calculated returns
    */
-  async getFunds({ category = 'all', search = '', plan = 'regular', option = 'growth', page = 1, limit = 50, days, customDays = '33,50,67', startDate = null, endDate = null, asOfDate = null }) {
+  async getFunds({ category = 'all', subCategory = 'all', search = '', plan = 'regular', option = 'growth', page = 1, limit = 50, days, customDays = '33,50,67', startDate = null, endDate = null, asOfDate = null }) {
     await this.initializeMasterRegistry();
 
     const daysParam = days || customDays;
@@ -2001,6 +2135,13 @@ class AmfiService {
       filtered = filtered.filter(s => 
         s.category.toLowerCase() === catLower ||
         s.category.toLowerCase().replace(/[^a-z0-9]+/g, '-') === catLower
+      );
+    }
+
+    // Sub Category Filter (for Debt / Liquid or any category)
+    if (subCategory && subCategory.trim().toLowerCase() !== 'all') {
+      filtered = filtered.filter(s => 
+        matchesDebtSubCategory(s.subCategoryName || '', subCategory, s.displayName)
       );
     }
 
@@ -2054,6 +2195,7 @@ class AmfiService {
           displayName: scheme.displayName,
           amfiSchemeName: scheme.amfiSchemeName,
           category: scheme.category,
+          subCategoryName: scheme.subCategoryName || (scheme.category === 'Debt / Liquid' ? determineDebtSubCategory('', scheme.displayName) : ''),
           schemeOption: scheme.schemeOption || determineSchemeOption(scheme.displayName),
           subCategoryId: scheme.subCategoryId,
           amcName: scheme.amcName,
@@ -2095,6 +2237,7 @@ class AmfiService {
       limit: limitNum,
       totalPages,
       customDaysList: daysList,
+      debtSubCategories: this.getDebtSubCategories(),
       reportDate: histAumRes?.effectiveDate || this.reportDate,
       lastUpdated: this.lastUpdated
     };
@@ -2158,6 +2301,7 @@ class AmfiService {
           displayName: scheme.displayName,
           amfiSchemeName: scheme.amfiSchemeName,
           category: scheme.category,
+          subCategoryName: scheme.subCategoryName || (scheme.category === 'Debt / Liquid' ? determineDebtSubCategory('', scheme.displayName) : ''),
           schemeOption: scheme.schemeOption || determineSchemeOption(scheme.displayName),
           subCategoryId: scheme.subCategoryId,
           amcName: scheme.amcName,

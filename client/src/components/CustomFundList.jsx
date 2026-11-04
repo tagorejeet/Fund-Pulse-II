@@ -583,7 +583,14 @@ export const CustomFundList = ({
                                 }}
                               >
                                 <div className="font-bold text-slate-900 dark:text-white text-xs select-text">{fund.displayName}</div>
-                                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 select-text">{fund.amcName}</div>
+                                <div className="flex items-center gap-2 mt-0.5 select-text">
+                                  <span className="text-[10px] text-slate-500 dark:text-slate-400">{fund.amcName}</span>
+                                  {fund.subCategoryName && (
+                                    <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50">
+                                      {fund.subCategoryName}
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               {isBoth ? (
                                 <>
