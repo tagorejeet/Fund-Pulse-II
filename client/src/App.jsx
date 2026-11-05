@@ -437,8 +437,9 @@ export function App() {
       if (res.data.categories) setCategoriesList(res.data.categories);
       if (res.data.debtSubCategories) setDebtSubCategories(res.data.debtSubCategories);
 
+      const effectiveReportDate = res.data.reportDate || res.data.funds?.[0]?.navDate;
       setMeta({
-        reportDate: res.data.reportDate,
+        reportDate: effectiveReportDate,
         lastUpdated: res.data.lastUpdated,
         isCached: res.data.isCached
       });
@@ -483,6 +484,13 @@ export function App() {
         asOfDate: calcDate
       });
       setCustomFunds(res.data?.funds || []);
+      if (res.data?.reportDate) {
+        setMeta(prev => ({
+          ...prev,
+          reportDate: res.data.reportDate,
+          lastUpdated: res.data.lastUpdated || prev?.lastUpdated || new Date().toISOString()
+        }));
+      }
     } catch (err) {
       console.error('Failed to load custom fund list details:', err);
       setCustomFundsError(err.message || 'Server timeout or network error while fetching fund details.');
@@ -520,6 +528,13 @@ export function App() {
         asOfDate: calcDate
       });
       setSuggestionFunds(res.data?.funds || []);
+      if (res.data?.reportDate) {
+        setMeta(prev => ({
+          ...prev,
+          reportDate: res.data.reportDate,
+          lastUpdated: res.data.lastUpdated || prev?.lastUpdated || new Date().toISOString()
+        }));
+      }
     } catch (err) {
       console.error('Failed to load suggestion fund list details:', err);
       setSuggestionFundsError(err.message || 'Server timeout or network error while fetching fund details.');

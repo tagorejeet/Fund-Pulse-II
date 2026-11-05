@@ -13,7 +13,7 @@ const getFunds = async (req, res) => {
   try {
     const { category, subCategory, search, plan = 'regular', option = 'all', page = 1, limit = 50, days, customDays, startDate, endDate, asOfDate, calculationDate, date } = req.query;
     const resolvedAsOfDate = asOfDate || calculationDate || date || null;
-    
+
     const result = await amfiService.getFunds({
       category,
       subCategory,
@@ -123,6 +123,11 @@ const getFundById = async (req, res) => {
 
     const isDir = plan.toLowerCase() === 'direct';
 
+    const isHistorical = resolvedAsOfDate && amfiService.parseNavDate(resolvedAsOfDate).getTime() < amfiService.parseNavDate(amfiService.reportDate || '1970-01-01').getTime();
+    if (!isHistorical && computed.navDate && (!amfiService.reportDate || amfiService.parseNavDate(computed.navDate).getTime() > amfiService.parseNavDate(amfiService.reportDate).getTime())) {
+      amfiService.reportDate = computed.navDate;
+    }
+
     res.json({
       success: true,
       data: {
@@ -177,7 +182,7 @@ const getFundById = async (req, res) => {
           preNavRegular: histMatch ? histMatch.preNavRegular : null,
           preNavDirect: histMatch ? histMatch.preNavDirect : null
         },
-        reportDate: histAumRes?.effectiveDate || (resolvedAsOfDate ? amfiService.formatAmfiDate(amfiService.parseNavDate(resolvedAsOfDate)) : amfiService.reportDate),
+        reportDate: histAumRes?.effectiveDate || (resolvedAsOfDate ? amfiService.formatAmfiDate(amfiService.parseNavDate(resolvedAsOfDate)) : (computed.navDate || amfiService.reportDate)),
         lastUpdated: amfiService.lastUpdated
       }
     });
@@ -252,12 +257,15 @@ const refreshData = async (req, res) => {
     amfiService.navHistoryCache.clear();
     amfiService.computedCache.clear();
 
-    const latestNavDate = await amfiService.resolveLatestNavDate();
-    if (latestNavDate) {
-      amfiService.reportDate = latestNavDate;
-    }
+    // Reload persisted seed & runtime disk NAV cache
+    amfiService.loadDiskNavCache();
 
     await amfiService.initializeMasterRegistry();
+
+    const latestNavDate = await amfiService.resolveLatestNavDate();
+    if (latestNavDate && (!amfiService.reportDate || amfiService.parseNavDate(latestNavDate).getTime() > amfiService.parseNavDate(amfiService.reportDate).getTime())) {
+      amfiService.reportDate = latestNavDate;
+    }
     amfiService.lastUpdated = new Date().toISOString();
 
     res.json({

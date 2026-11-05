@@ -174,9 +174,9 @@ const FundTable = ({
           <Calendar className="w-4 h-4 text-[#CD9B30] shrink-0" />
           <span>
             Valuation & Performance as of: <strong className="text-slate-900 dark:text-white font-bold">{calculationDate || 'Today'}</strong>
-            {meta?.reportDate && (
+            {(meta?.reportDate || funds?.[0]?.navDate) && (
               <span className="text-slate-500 dark:text-slate-400 ml-2">
-                (Latest AMFI Data Date: <strong className="text-emerald-700 dark:text-emerald-400 font-semibold">{meta.reportDate}</strong>)
+                (Latest AMFI Data Date: <strong className="text-emerald-700 dark:text-emerald-400 font-semibold">{meta?.reportDate || funds?.[0]?.navDate}</strong>)
               </span>
             )}
           </span>
