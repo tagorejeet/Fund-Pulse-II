@@ -429,15 +429,9 @@ export const exportSipToExcel = async ({
       sipCell.alignment = { horizontal: 'center', vertical: 'middle' };
       sipCell.border = { top: BORDER_THIN, bottom: BORDER_THIN, left: BORDER_THIN, right: BORDER_THIN };
 
-      // Col 5: Current NAV (Index Value)
+      // Col 5: Current NAV - Indices do not have NAV, show '-'
       const navCell = wsOverview.getCell(rowNum, 5);
-      const navVal = parseNav(idx.currentNav);
-      if (navVal !== null) {
-        navCell.value = navVal;
-        navCell.numFmt = '#,##0.00';
-      } else {
-        navCell.value = '-';
-      }
+      navCell.value = '-';
       navCell.font = { name: FONT_FAMILY, size: 12, bold: false, color: { argb: 'FF000000' } };
       navCell.alignment = { horizontal: 'center', vertical: 'middle' };
       navCell.border = { top: BORDER_THIN, bottom: BORDER_THIN, left: BORDER_THIN, right: BORDER_THIN };
@@ -543,7 +537,7 @@ export const exportSipToExcel = async ({
 
     const infoRows = [
       [`Scheme Name: ${fund.displayName || fund.amfiSchemeName}`],
-      [`Category: ${fund.category || 'N/A'}`, `AUM: ${fund.dailyAUMFormatted || (aumVal ? `₹${aumVal.toLocaleString('en-IN')} Cr` : 'N/A')}`, `Plan: ${planLabel}`],
+      [`Category: ${fund.category || 'N/A'}`, `AUM: ${fund.isNseIndex || fund.plan === 'Benchmark' ? '-' : (fund.dailyAUMFormatted || (aumVal ? `₹${aumVal.toLocaleString('en-IN')} Cr` : 'N/A'))}`, `Plan: ${planLabel}`],
       [`Analysis Period: ${activePeriodKey} (${periodData?.installmentsCount || 0} monthly installments)`, `Calculation Date: ${calcDateFormatted}`, `Report Date: ${todayFormatted}`]
     ];
 

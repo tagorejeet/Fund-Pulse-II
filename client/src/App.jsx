@@ -385,7 +385,7 @@ export function App() {
 
   const handleExportNseExcel = (selectedIds) => {
     const toExport = nseIndices.filter(i => selectedIds.has(i.id));
-    exportNseListToExcel(toExport, calculationDate);
+    exportNseListToExcel(toExport, calculationDate, mode, customDaysList);
   };
 
   // Load Main Paginated Schemes (optimized with AbortController for instant search response)

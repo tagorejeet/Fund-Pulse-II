@@ -430,15 +430,9 @@ export function buildSuggestionSheetWorksheet(workbook, {
       nameCell.alignment = { horizontal: 'left', vertical: 'middle' };
       nameCell.border = { top: BORDER_THIN, bottom: BORDER_THIN, left: BORDER_THIN, right: BORDER_THIN };
 
-      // Col 3: Index Value (Close)
+      // Col 3: AUM (Cr) - Indices do not have mutual fund AUM, show '-'
       const aumCell = ws.getCell(rowNum, 3);
-      const val = Number(idx.currentValue);
-      if (!isNaN(val) && val > 0) {
-        aumCell.value = val;
-        aumCell.numFmt = '#,##0.00';
-      } else {
-        aumCell.value = '-';
-      }
+      aumCell.value = '-';
       aumCell.font = { name: FONT_FAMILY, size: 12, bold: false, color: { argb: 'FF000000' } };
       aumCell.alignment = { horizontal: 'center', vertical: 'middle' };
       aumCell.border = { top: BORDER_THIN, bottom: BORDER_THIN, left: BORDER_THIN, right: BORDER_THIN };
@@ -447,15 +441,10 @@ export function buildSuggestionSheetWorksheet(workbook, {
       let startCol = 4;
 
       if (isBoth) {
-        // Col 4 & 5: Index Value repeated
+        // Col 4 & 5: NAV Reg & NAV Dir - Indices do not have NAV, show '-'
         [4, 5].forEach(colIdx => {
           const valCell = ws.getCell(rowNum, colIdx);
-          if (!isNaN(val) && val > 0) {
-            valCell.value = val;
-            valCell.numFmt = '#,##0.00';
-          } else {
-            valCell.value = '-';
-          }
+          valCell.value = '-';
           valCell.font = { name: FONT_FAMILY, size: 12, bold: false, color: { argb: 'FF000000' } };
           valCell.alignment = { horizontal: 'center', vertical: 'middle' };
           valCell.border = { top: BORDER_THIN, bottom: BORDER_THIN, left: BORDER_THIN, right: BORDER_THIN };
@@ -477,14 +466,9 @@ export function buildSuggestionSheetWorksheet(workbook, {
         startCol = 6;
       } else {
         if (isDaysMode) {
-          // Col 4: Current Value
+          // Col 4: Current NAV - Indices do not have NAV, show '-'
           const navCell = ws.getCell(rowNum, 4);
-          if (!isNaN(val) && val > 0) {
-            navCell.value = val;
-            navCell.numFmt = '#,##0.00';
-          } else {
-            navCell.value = '-';
-          }
+          navCell.value = '-';
           navCell.font = { name: FONT_FAMILY, size: 12, bold: false, color: { argb: 'FF000000' } };
           navCell.alignment = { horizontal: 'center', vertical: 'middle' };
           navCell.border = { top: BORDER_THIN, bottom: BORDER_THIN, left: BORDER_THIN, right: BORDER_THIN };
@@ -572,14 +556,12 @@ export function buildNseWorksheet(workbook, indices = [], calculationDate = null
     'Category',
     'Index Name',
     'Official Name',
-    'Index Value (Close)',
     ...daysListToUse.map(d => `${d} Days (%)`),
     'Data Date'
   ] : [
     'Category',
     'Index Name',
     'Official Name',
-    'Index Value (Close)',
     '1 Yr (%)',
     '2 Yr (%)',
     '3 Yr (%)',
@@ -591,10 +573,9 @@ export function buildNseWorksheet(workbook, indices = [], calculationDate = null
   const totalCols = headers.length;
   ws.columns = [
     { width: 22 },
-    { width: 26 },
-    { width: 26 },
-    { width: 18 },
-    ...Array.from({ length: totalCols - 5 }).map(() => ({ width: 12 })),
+    { width: 30 },
+    { width: 30 },
+    ...Array.from({ length: totalCols - 4 }).map(() => ({ width: 13 })),
     { width: 16 }
   ];
 
@@ -654,7 +635,6 @@ export function buildNseWorksheet(workbook, indices = [], calculationDate = null
       'NSE Benchmark',
       idx.displayName || idx.id,
       idx.officialName || idx.id,
-      !isNaN(val) && val > 0 ? val : '-',
       ...returnVals,
       idx.dataDate || 'N/A'
     ];
@@ -669,9 +649,7 @@ export function buildNseWorksheet(workbook, indices = [], calculationDate = null
         vertical: 'middle'
       };
 
-      if (colIdx === 4 && typeof cellVal === 'number') {
-        cell.numFmt = '#,##0.00';
-      } else if (colIdx > 4 && colIdx < totalCols && typeof cellVal === 'number') {
+      if (colIdx >= 4 && colIdx < totalCols && typeof cellVal === 'number') {
         cell.numFmt = '0.00%';
       }
 
@@ -707,7 +685,7 @@ export function buildCombinedSummaryWorksheet(workbook, funds = [], indices = []
     'Type',
     'Category',
     'Name',
-    'AUM / Index Value',
+    'AUM (Cr)',
     '1 Yr (%)',
     '2 Yr (%)',
     '3 Yr (%)',
@@ -816,12 +794,11 @@ export function buildCombinedSummaryWorksheet(workbook, funds = [], indices = []
   indices.forEach(idx => {
     const row = ws.getRow(currentRow);
     row.height = 20;
-    const val = Number(idx.currentValue);
     const rowData = [
       'NSE Index',
       'NSE Index',
       idx.displayName || idx.id,
-      !isNaN(val) && val > 0 ? val : '-',
+      '-',
       parsePct(idx.return1Yr),
       parsePct(idx.return2Yr),
       parsePct(idx.return3Yr),

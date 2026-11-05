@@ -301,7 +301,7 @@ export const CustomFundList = ({
 
   const handleExportNseOnly = async () => {
     const exportableNse = selectedNseIndicesList.filter(i => checkedNseExportIds.has(i.id));
-    await exportNseListToExcel(exportableNse, calculationDate);
+    await exportNseListToExcel(exportableNse, calculationDate, mode, customDaysList);
     setExportMenuOpen(false);
   };
 
