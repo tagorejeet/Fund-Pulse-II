@@ -12,16 +12,18 @@ const sipController = require('../controllers/sipController');
 const refreshLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
+  validate: { xForwardedForHeader: false },
   message: {
     success: false,
     error: 'Too many manual refresh requests. Please try again later.'
   }
 });
 
-// General API rate limiter (max 200 requests per 15 minutes)
+// General API rate limiter (max 500 requests per 15 minutes)
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200
+  max: 500,
+  validate: { xForwardedForHeader: false }
 });
 
 router.use(apiLimiter);

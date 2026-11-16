@@ -146,35 +146,26 @@ export function App() {
   });
 
   const [calculationDate, setCalculationDate] = useState(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_CALC_DATE);
-      if (saved && /^\d{4}-\d{2}-\d{2}$/.test(saved)) return saved;
-    } catch (e) {}
     return new Date().toISOString().split('T')[0];
   });
 
   const [startDate, setStartDate] = useState(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_START_DATE);
-      if (saved && /^\d{4}-\d{2}-\d{2}$/.test(saved)) return saved;
-    } catch (e) {}
     const d = new Date();
     d.setDate(d.getDate() - 33);
     return d.toISOString().split('T')[0];
   });
 
   const [endDate, setEndDate] = useState(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_END_DATE);
-      if (saved && /^\d{4}-\d{2}-\d{2}$/.test(saved)) return saved;
-    } catch (e) {}
     return new Date().toISOString().split('T')[0];
   });
 
-  // Clear legacy active tab storage so startup/reload always defaults to Suggestion Sheet
+  // Clear legacy active tab and stale date storage so startup/reload always defaults to current date and Suggestion Sheet
   useEffect(() => {
     try {
       localStorage.removeItem(LOCAL_STORAGE_ACTIVE_TAB);
+      localStorage.removeItem(LOCAL_STORAGE_CALC_DATE);
+      localStorage.removeItem(LOCAL_STORAGE_START_DATE);
+      localStorage.removeItem(LOCAL_STORAGE_END_DATE);
     } catch (e) {}
   }, []);
 
@@ -196,14 +187,6 @@ export function App() {
       localStorage.setItem(LOCAL_STORAGE_CUSTOM_DAYS, String(customDays));
     } catch (e) {}
   }, [customDaysList, customDays]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(LOCAL_STORAGE_CALC_DATE, calculationDate);
-      localStorage.setItem(LOCAL_STORAGE_START_DATE, startDate);
-      localStorage.setItem(LOCAL_STORAGE_END_DATE, endDate);
-    } catch (e) {}
-  }, [calculationDate, startDate, endDate]);
 
   // Data State
   const [funds, setFunds] = useState([]);

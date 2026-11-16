@@ -1836,26 +1836,28 @@ class AmfiService {
     const now = Date.now();
     const cached = this.navHistoryCache.get(code);
     if (cached && Array.isArray(cached.navList) && cached.navList.length > 0) {
-      if (cached.isComplete) {
-        return cached.navList;
-      }
-      const isContinuous = this.isNavListContinuous(cached.navList);
-      if (!requireContinuous || isContinuous) {
-        if (!minRequiredDate) {
-          return cached.navList;
-        }
-        const reqDate = parseNavDate(minRequiredDate);
-        if (!reqDate || isNaN(reqDate.getTime()) || reqDate.getTime() === 0) {
-          return cached.navList;
-        }
+      const targetDate = minRequiredDate ? parseNavDate(minRequiredDate) : (this.reportDate ? parseNavDate(this.reportDate) : new Date());
+      const targetTime = (targetDate && !isNaN(targetDate.getTime())) ? targetDate.getTime() : now;
+      const latestCachedDate = parseNavDate(cached.navList[0]?.date);
+      const latestTime = (latestCachedDate && !isNaN(latestCachedDate.getTime())) ? latestCachedDate.getTime() : 0;
 
-        const earliestCachedDate = parseNavDate(cached.navList[cached.navList.length - 1]?.date);
-        // If cached navList extends back to cover reqDate (or within 15 days of it), it satisfies the requirement
-        if (earliestCachedDate && earliestCachedDate.getTime() <= reqDate.getTime() + (15 * 86400000)) {
+      // How many days behind is the latest cached record relative to the requested target date?
+      const daysBehind = (targetTime - latestTime) / (1000 * 60 * 60 * 24);
+
+      // Cache is up-to-date if latest record is on or after targetDate, or within 3.5 calendar days
+      // (accounting for weekends/holidays where Friday NAV is the latest trading day)
+      const isUpToDate = daysBehind <= 3.5;
+
+      if (isUpToDate) {
+        if (cached.isComplete) {
+          return cached.navList;
+        }
+        const isContinuous = this.isNavListContinuous(cached.navList);
+        if (!requireContinuous || isContinuous) {
           return cached.navList;
         }
       } else {
-        logger.info(`Cached NAV history for scheme ${code} is sparse (${cached.navList.length} records with gaps). Continuous history required; triggering full fetch...`);
+        logger.info(`NAV history cache for scheme ${code} is ${daysBehind.toFixed(1)} days behind target date (latest cached: ${cached.navList[0]?.date}). Refreshing from MFAPI...`);
       }
     }
 
@@ -1896,16 +1898,20 @@ class AmfiService {
       const cacheKey = `${schemeCode}_${isDirect ? 'dir' : 'reg'}_${daysList.join(',')}_${startDate || ''}_${endDate || ''}_${asOfDate || ''}`;
       const cached = this.computedCache.get(cacheKey);
       if (cached && (Date.now() - cached.timestamp < AMFI_CACHE_TTL * 1000)) {
-        // If cached computation has missing returns for 5Y or 10Y, but NAV history is now complete, bypass cache to calculate fresh
-        const histEntry = this.navHistoryCache.get(Number(schemeCode));
-        const hasMissingReturns = cached.data?.return5Yr === null || cached.data?.return10Yr === null;
-        if (!hasMissingReturns || !histEntry?.isComplete) {
-          // Verify that cached computation navDate is not behind the target anchor date
-          const targetReqDate = parseNavDate(targetAnchorDate);
-          const cachedNavDate = parseNavDate(cached.data?.navDate);
-          const isTargetCurrentOrFuture = this.reportDate && targetReqDate && targetReqDate.getTime() >= parseNavDate(this.reportDate).getTime();
-          if (isTargetCurrentOrFuture || !targetReqDate || !cachedNavDate || cachedNavDate.getTime() >= targetReqDate.getTime()) {
-            return cached.data;
+        // If histMatch is provided and cached currentNav does not match histMatch's ground truth, bypass cache
+        const matchNav = histMatch ? (isDirect ? (histMatch.navDirect || histMatch.navRegular) : (histMatch.navRegular || histMatch.navDirect)) : null;
+        const isMismatch = matchNav && cached.data?.currentNav && Math.abs(Number(cached.data.currentNav) - Number(matchNav)) > 0.05;
+        if (!isMismatch) {
+          const histEntry = this.navHistoryCache.get(Number(schemeCode));
+          const hasMissingReturns = cached.data?.return5Yr === null || cached.data?.return10Yr === null;
+          if (!hasMissingReturns || !histEntry?.isComplete) {
+            const targetReqDate = parseNavDate(targetAnchorDate);
+            const cachedNavDate = parseNavDate(cached.data?.navDate);
+            const daysDiff = (targetReqDate && cachedNavDate) ? (targetReqDate.getTime() - cachedNavDate.getTime()) / (1000 * 60 * 60 * 24) : 0;
+            // Only serve from cache if cached computation is within 3.5 days of target date
+            if (daysDiff <= 3.5) {
+              return cached.data;
+            }
           }
         }
       }
@@ -1956,6 +1962,22 @@ class AmfiService {
 
     // Ensure navList is strictly sorted descending by date (newest first)
     let sortedNavList = [...navList].sort((a, b) => parseNavDate(b.date).getTime() - parseNavDate(a.date).getTime());
+
+    // Inject official ground-truth NAV from histMatch if available
+    if (histMatch) {
+      const matchNav = isDirect ? (histMatch.navDirect || histMatch.navRegular) : (histMatch.navRegular || histMatch.navDirect);
+      const matchDateStr = histMatch.navDate || (asOfDate ? formatAmfiDate(parseNavDate(asOfDate)) : null);
+      if (matchNav && matchDateStr && !isNaN(Number(matchNav))) {
+        const matchTime = parseNavDate(matchDateStr).getTime();
+        const existingIdx = sortedNavList.findIndex(item => parseNavDate(item.date).getTime() === matchTime);
+        if (existingIdx >= 0) {
+          sortedNavList[existingIdx] = { date: matchDateStr, nav: Number(matchNav) };
+        } else {
+          sortedNavList.push({ date: matchDateStr, nav: Number(matchNav) });
+          sortedNavList.sort((a, b) => parseNavDate(b.date).getTime() - parseNavDate(a.date).getTime());
+        }
+      }
+    }
 
     // Determine anchor valuation NAV (latest or as-of-date)
     let latestObj = sortedNavList[0];
@@ -2286,9 +2308,8 @@ class AmfiService {
         const navDirect = (histMatch && histMatch.navDirect)
           ? histMatch.navDirect
           : (computed.dirNav || (isDir ? computed.currentNav : null) || scheme.navDirect || null);
-        const currentNav = computed.currentNav || (histMatch && (isDir ? histMatch.navDirect : histMatch.navRegular))
-          || (isDir ? (navDirect || navRegular) : (navRegular || navDirect));
-        const navDate = computed.navDate || (histMatch && histMatch.navDate) || (histAumRes?.effectiveDate) || (asOfDate ? formatAmfiDate(parseNavDate(asOfDate)) : this.reportDate);
+        const currentNav = (isDir ? (navDirect || navRegular) : (navRegular || navDirect)) || computed.currentNav;
+        const navDate = (histMatch && histMatch.navDate) || computed.navDate || (histAumRes?.effectiveDate) || (asOfDate ? formatAmfiDate(parseNavDate(asOfDate)) : this.reportDate);
 
         return {
           id: scheme.id,
@@ -2417,9 +2438,8 @@ class AmfiService {
         const navDirect = (histMatch && histMatch.navDirect)
           ? histMatch.navDirect
           : (computed.dirNav || (isDir ? computed.currentNav : null) || scheme.navDirect || null);
-        const currentNav = computed.currentNav || (histMatch && (isDir ? histMatch.navDirect : histMatch.navRegular))
-          || (isDir ? (navDirect || navRegular) : (navRegular || navDirect));
-        const navDate = computed.navDate || (histMatch && histMatch.navDate) || (histAumRes?.effectiveDate) || (asOfDate ? formatAmfiDate(parseNavDate(asOfDate)) : this.reportDate);
+        const currentNav = (isDir ? (navDirect || navRegular) : (navRegular || navDirect)) || computed.currentNav;
+        const navDate = (histMatch && histMatch.navDate) || computed.navDate || (histAumRes?.effectiveDate) || (asOfDate ? formatAmfiDate(parseNavDate(asOfDate)) : this.reportDate);
 
         return {
           id: scheme.id,

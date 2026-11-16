@@ -145,8 +145,15 @@ async function fetchOfficialNseIndexHistory(indexName, fromStr, toStr) {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
+        if (res.statusCode !== 200) {
+          return reject(new Error(`HTTP ${res.statusCode}`));
+        }
+        const trimmed = data.trim();
+        if (trimmed.startsWith('<')) {
+          return reject(new Error(`Endpoint returned HTML (blocked/challenge) instead of JSON`));
+        }
         try {
-          const json = JSON.parse(data);
+          const json = JSON.parse(trimmed);
           if (Array.isArray(json)) {
             // Normalize records
             const parsedRecords = json.map(r => {
@@ -254,6 +261,9 @@ function syncFactsheetIndicesWithLatestTradingDays() {
   return anySynced;
 }
 
+// Global deduplication promise for in-flight refresh cycles
+let globalNseRefreshPromise = null;
+
 // Prime / Refresh all official NSE indices (Broad, Sectoral, Thematic)
 async function refreshAllNseIndices(force = false) {
   const now = Date.now();
@@ -272,13 +282,21 @@ async function refreshAllNseIndices(force = false) {
 
   // Fetch in concurrent batches of 6 for speed and reliability
   const chunkSize = 6;
+  let consecutiveBatchFailures = 0;
   for (let i = 0; i < NSE_INDICES.length; i += chunkSize) {
+    if (consecutiveBatchFailures >= 2) {
+      logger.warn(`Circuit breaker activated: consecutive failures from niftyindices.com. Aborting refresh cycle to retain cached data.`);
+      break;
+    }
     const chunk = NSE_INDICES.slice(i, i + chunkSize);
+    let chunkAttempted = 0;
+    let chunkFailures = 0;
     await Promise.all(chunk.map(async (item) => {
       // Offline factsheet debt indices must NOT be queried via public equity endpoint
       if (item.isFixedIncomeFactsheet) {
         return;
       }
+      chunkAttempted++;
 
       const existing = memoryCache.data[item.id];
       if (!force && existing && existing.length > 0) {
@@ -308,11 +326,19 @@ async function refreshAllNseIndices(force = false) {
           } else {
             logger.warn(`Safeguard rejected suspicious API response for ${item.id} (count: ${records.length}, latest: ${latestNewRec.dateStr})`);
           }
+        } else {
+          chunkFailures++;
         }
       } catch (err) {
+        chunkFailures++;
         logger.error(`Error fetching official data for ${item.id}:`, err.message);
       }
     }));
+    if (chunkAttempted > 0 && chunkFailures === chunkAttempted) {
+      consecutiveBatchFailures++;
+    } else if (chunkAttempted > 0) {
+      consecutiveBatchFailures = 0;
+    }
     saveDiskCache();
   }
 
@@ -420,8 +446,21 @@ async function getNSEIndexData({ asOfDate = null, forceRefresh = false, days = n
     loadDiskCache();
   }
 
-  if (Object.keys(memoryCache.data).length === 0 || forceRefresh || isCacheStale || needsDeepHistory) {
-    await refreshAllNseIndices(forceRefresh || needsDeepHistory);
+  const hasData = Object.keys(memoryCache.data).length >= 50;
+  if (forceRefresh || !hasData) {
+    if (!globalNseRefreshPromise) {
+      globalNseRefreshPromise = refreshAllNseIndices(forceRefresh || needsDeepHistory).finally(() => {
+        globalNseRefreshPromise = null;
+      });
+    }
+    await globalNseRefreshPromise;
+  } else if (isCacheStale || needsDeepHistory) {
+    // Non-blocking background refresh so responses remain instant (<10ms)
+    if (!globalNseRefreshPromise) {
+      globalNseRefreshPromise = refreshAllNseIndices(false).finally(() => {
+        globalNseRefreshPromise = null;
+      });
+    }
   }
 
   // Parse user's selected date (defaulting to today)
