@@ -589,6 +589,20 @@ export function App() {
     setIsLoading(true);
     if (selectedFundIds.size > 0) setIsCustomLoading(true);
     if (suggestionFundIds.size > 0) setIsSuggestionLoading(true);
+    if (newDate) {
+      const parts = newDate.split('-');
+      if (parts.length === 3) {
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const mIdx = parseInt(parts[1], 10) - 1;
+        if (mIdx >= 0 && mIdx < 12) {
+          const optDate = `${parts[2]}-${monthNames[mIdx]}-${parts[0]}`;
+          setMeta(prev => ({
+            ...prev,
+            reportDate: optDate
+          }));
+        }
+      }
+    }
     loadFunds(activeCategory, searchQuery, selectedPlan, 1, customDaysList, startDate, newDate, newDate);
     if (selectedFundIds.size > 0) {
       loadCustomFunds(selectedFundIds, selectedPlan, customDaysList, startDate, newDate, newDate);

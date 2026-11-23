@@ -685,12 +685,11 @@ class AmfiService {
     }
 
     const targetFormatted = formatAmfiDate(parsedDate);
-    // If target date is on or after live report date (e.g. today or future), use live registry AUM directly
-    if (this.reportDate) {
-      const repDate = parseNavDate(this.reportDate);
-      if (!isNaN(repDate.getTime()) && parsedDate.getTime() >= repDate.getTime()) {
-        return null;
-      }
+    // Only skip querying AMFI if target date is strictly in the future compared to today
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+    if (parsedDate.getTime() > endOfToday.getTime()) {
+      return null;
     }
 
     // Determine needed pairs across schemes
@@ -1841,12 +1840,26 @@ class AmfiService {
       const latestCachedDate = parseNavDate(cached.navList[0]?.date);
       const latestTime = (latestCachedDate && !isNaN(latestCachedDate.getTime())) ? latestCachedDate.getTime() : 0;
 
-      // How many days behind is the latest cached record relative to the requested target date?
-      const daysBehind = (targetTime - latestTime) / (1000 * 60 * 60 * 24);
-
-      // Cache is up-to-date if latest record is on or after targetDate, or within 3.5 calendar days
-      // (accounting for weekends/holidays where Friday NAV is the latest trading day)
-      const isUpToDate = daysBehind <= 3.5;
+      // Determine if cache has records covering the requested target date
+      let isUpToDate = false;
+      if (latestTime >= targetTime) {
+        // Cache has records on or after the requested target date
+        isUpToDate = true;
+      } else {
+        // Latest record is before targetDate. Check if targetDate is a weekend/holiday where Friday was the latest trading day:
+        const targetDayOfWeek = targetDate.getDay();
+        const diffDays = (targetTime - latestTime) / (1000 * 60 * 60 * 24);
+        if (targetDayOfWeek === 6 && diffDays <= 1.5) {
+          // Saturday, latest is Friday (1 day back)
+          isUpToDate = true;
+        } else if (targetDayOfWeek === 0 && diffDays <= 2.5) {
+          // Sunday, latest is Friday (2 days back)
+          isUpToDate = true;
+        } else if (Date.now() - (cached.timestamp || 0) < 5 * 60 * 1000) {
+          // Already attempted fetch within the last 5 minutes from MFAPI
+          isUpToDate = true;
+        }
+      }
 
       if (isUpToDate) {
         if (cached.isComplete) {
@@ -1857,7 +1870,7 @@ class AmfiService {
           return cached.navList;
         }
       } else {
-        logger.info(`NAV history cache for scheme ${code} is ${daysBehind.toFixed(1)} days behind target date (latest cached: ${cached.navList[0]?.date}). Refreshing from MFAPI...`);
+        logger.info(`NAV history cache for scheme ${code} does not have records up to ${minRequiredDate || 'target date'} (latest cached: ${cached.navList[0]?.date}). Refreshing from MFAPI...`);
       }
     }
 
@@ -1908,8 +1921,16 @@ class AmfiService {
             const targetReqDate = parseNavDate(targetAnchorDate);
             const cachedNavDate = parseNavDate(cached.data?.navDate);
             const daysDiff = (targetReqDate && cachedNavDate) ? (targetReqDate.getTime() - cachedNavDate.getTime()) / (1000 * 60 * 60 * 24) : 0;
-            // Only serve from cache if cached computation is within 3.5 days of target date
-            if (daysDiff <= 3.5) {
+            if (asOfDate) {
+              const targetDow = targetReqDate ? targetReqDate.getDay() : -1;
+              if (cachedNavDate && targetReqDate && cachedNavDate.getTime() >= targetReqDate.getTime()) {
+                return cached.data;
+              } else if (targetDow === 6 && daysDiff <= 1.5) {
+                return cached.data;
+              } else if (targetDow === 0 && daysDiff <= 2.5) {
+                return cached.data;
+              }
+            } else if (daysDiff <= 3.5) {
               return cached.data;
             }
           }
@@ -1928,7 +1949,7 @@ class AmfiService {
       customDaysList: daysList,
       customDays: daysList[0] || 33,
       currentNav: isDirect ? scheme.navDirect : scheme.navRegular,
-      navDate: this.reportDate,
+      navDate: asOfDate ? formatAmfiDate(parseNavDate(asOfDate)) : this.reportDate,
       planUsed: isDirect ? 'Direct' : 'Regular'
     };
 
@@ -1989,8 +2010,8 @@ class AmfiService {
         if (found) {
           latestObj = found;
         } else {
-          // If no record preceding or matching targetValDate, fall back to latest available record
-          latestObj = sortedNavList[0];
+          // If no record preceding or matching targetValDate, do not pick a record from the future
+          latestObj = null;
         }
       }
     }
@@ -2022,6 +2043,20 @@ class AmfiService {
           const fullMfapiList = await this.fetchMfapiNavHistory(codeNum);
           if (fullMfapiList && fullMfapiList.length > 0) {
             sortedNavList = [...fullMfapiList].sort((a, b) => parseNavDate(b.date).getTime() - parseNavDate(a.date).getTime());
+            if (histMatch) {
+              const matchNav = isDirect ? (histMatch.navDirect || histMatch.navRegular) : (histMatch.navRegular || histMatch.navDirect);
+              const matchDateStr = histMatch.navDate || (asOfDate ? formatAmfiDate(parseNavDate(asOfDate)) : null);
+              if (matchNav && matchDateStr && !isNaN(Number(matchNav))) {
+                const matchTime = parseNavDate(matchDateStr).getTime();
+                const existingIdx = sortedNavList.findIndex(item => parseNavDate(item.date).getTime() === matchTime);
+                if (existingIdx >= 0) {
+                  sortedNavList[existingIdx] = { date: matchDateStr, nav: Number(matchNav) };
+                } else {
+                  sortedNavList.push({ date: matchDateStr, nav: Number(matchNav) });
+                  sortedNavList.sort((a, b) => parseNavDate(b.date).getTime() - parseNavDate(a.date).getTime());
+                }
+              }
+            }
             if (asOfDate) {
               const targetValDate = parseNavDate(asOfDate);
               const found = sortedNavList.find(item => parseNavDate(item.date).getTime() <= targetValDate.getTime());
@@ -2351,23 +2386,30 @@ class AmfiService {
       12
     );
 
-    let latestFundNavDate = null;
+    const dateCounts = new Map();
     for (const f of fundsWithReturns) {
       if (f.navDate) {
-        if (!latestFundNavDate || parseNavDate(f.navDate).getTime() > parseNavDate(latestFundNavDate).getTime()) {
-          latestFundNavDate = f.navDate;
-        }
+        dateCounts.set(f.navDate, (dateCounts.get(f.navDate) || 0) + 1);
+      }
+    }
+    let latestFundNavDate = null;
+    let maxCount = 0;
+    for (const [dStr, count] of dateCounts.entries()) {
+      if (count > maxCount || (count === maxCount && latestFundNavDate && parseNavDate(dStr).getTime() > parseNavDate(latestFundNavDate).getTime())) {
+        maxCount = count;
+        latestFundNavDate = dStr;
       }
     }
 
-    const isHistorical = asOfDate && parseNavDate(asOfDate).getTime() < parseNavDate(this.reportDate || '1970-01-01').getTime();
-    if (!isHistorical && latestFundNavDate && (!this.reportDate || parseNavDate(latestFundNavDate).getTime() > parseNavDate(this.reportDate).getTime())) {
+    if (!asOfDate && latestFundNavDate && (!this.reportDate || parseNavDate(latestFundNavDate).getTime() > parseNavDate(this.reportDate).getTime())) {
       this.reportDate = latestFundNavDate;
     }
 
     let finalReportDate = histAumRes?.effectiveDate;
     if (!finalReportDate) {
-      if (latestFundNavDate && this.reportDate) {
+      if (asOfDate) {
+        finalReportDate = latestFundNavDate || formatAmfiDate(parseNavDate(asOfDate));
+      } else if (latestFundNavDate && this.reportDate) {
         finalReportDate = parseNavDate(latestFundNavDate).getTime() > parseNavDate(this.reportDate).getTime()
           ? latestFundNavDate
           : this.reportDate;
@@ -2399,7 +2441,13 @@ class AmfiService {
     const daysList = parseDaysList(daysParam);
 
     if (!ids || ids.length === 0) {
-      return { funds: [], total: 0, customDaysList: daysList };
+      return {
+        funds: [],
+        total: 0,
+        customDaysList: daysList,
+        reportDate: asOfDate ? formatAmfiDate(parseNavDate(asOfDate)) : this.reportDate,
+        lastUpdated: this.lastUpdated
+      };
     }
 
     const matchedSchemes = ids
@@ -2409,6 +2457,16 @@ class AmfiService {
         const sOpt = s.schemeOption || determineSchemeOption(s.displayName);
         return sOpt === 'growth';
       });
+
+    if (matchedSchemes.length === 0) {
+      return {
+        funds: [],
+        total: 0,
+        customDaysList: daysList,
+        reportDate: asOfDate ? formatAmfiDate(parseNavDate(asOfDate)) : this.reportDate,
+        lastUpdated: this.lastUpdated
+      };
+    }
 
     // Resolve historical AUM if asOfDate is specified
     const histAumRes = await this.resolveHistoricalAumForSchemes(asOfDate, matchedSchemes);
@@ -2489,23 +2547,30 @@ class AmfiService {
       return a.displayName.localeCompare(b.displayName);
     });
 
-    let latestFundNavDate = null;
+    const dateCounts = new Map();
     for (const f of fundsWithReturns) {
       if (f.navDate) {
-        if (!latestFundNavDate || parseNavDate(f.navDate).getTime() > parseNavDate(latestFundNavDate).getTime()) {
-          latestFundNavDate = f.navDate;
-        }
+        dateCounts.set(f.navDate, (dateCounts.get(f.navDate) || 0) + 1);
+      }
+    }
+    let latestFundNavDate = null;
+    let maxCount = 0;
+    for (const [dStr, count] of dateCounts.entries()) {
+      if (count > maxCount || (count === maxCount && latestFundNavDate && parseNavDate(dStr).getTime() > parseNavDate(latestFundNavDate).getTime())) {
+        maxCount = count;
+        latestFundNavDate = dStr;
       }
     }
 
-    const isHistorical = asOfDate && parseNavDate(asOfDate).getTime() < parseNavDate(this.reportDate || '1970-01-01').getTime();
-    if (!isHistorical && latestFundNavDate && (!this.reportDate || parseNavDate(latestFundNavDate).getTime() > parseNavDate(this.reportDate).getTime())) {
+    if (!asOfDate && latestFundNavDate && (!this.reportDate || parseNavDate(latestFundNavDate).getTime() > parseNavDate(this.reportDate).getTime())) {
       this.reportDate = latestFundNavDate;
     }
 
     let finalReportDate = histAumRes?.effectiveDate;
     if (!finalReportDate) {
-      if (latestFundNavDate && this.reportDate) {
+      if (asOfDate) {
+        finalReportDate = latestFundNavDate || formatAmfiDate(parseNavDate(asOfDate));
+      } else if (latestFundNavDate && this.reportDate) {
         finalReportDate = parseNavDate(latestFundNavDate).getTime() > parseNavDate(this.reportDate).getTime()
           ? latestFundNavDate
           : this.reportDate;
