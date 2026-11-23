@@ -182,7 +182,7 @@ export const exportSipToExcel = async ({
   const titleRow = wsOverview.getRow(1);
   titleRow.height = 30;
   const titleCell = wsOverview.getCell(1, 1);
-  titleCell.value = `Snazzy Wealth FundLens — Mutual Fund SIP Return Analysis (${todayFormatted})`;
+  titleCell.value = `FundCompare Analytics — Mutual Fund SIP Return Analysis (${todayFormatted})`;
   titleCell.font = { name: FONT_FAMILY, size: 16, bold: true, color: { argb: 'FF000000' } };
   titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
@@ -530,7 +530,7 @@ export const exportSipToExcel = async ({
     // Header Info Block
     wsDetail.mergeCells(1, 1, 1, detailTotalCols);
     const title = wsDetail.getCell(1, 1);
-    title.value = `Snazzy Wealth FundLens — Detailed Monthly SIP Cash Flow Ledger (${todayFormatted})`;
+    title.value = `FundCompare Analytics — Detailed Monthly SIP Cash Flow Ledger (${todayFormatted})`;
     title.font = { name: FONT_FAMILY, size: 14, bold: true, color: { argb: 'FF000000' } };
     title.alignment = { horizontal: 'center', vertical: 'middle' };
     wsDetail.getRow(1).height = 26;

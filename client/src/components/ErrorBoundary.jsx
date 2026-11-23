@@ -40,7 +40,7 @@ class ErrorBoundary extends React.Component {
             <div className="space-y-2">
               <h2 className="text-xl font-bold font-serif text-slate-900 dark:text-white">Something went wrong</h2>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Snazzy Wealth FundLens encountered an unexpected interface issue. Your saved funds and custom configurations are safe.
+                FundCompare Analytics encountered an unexpected interface issue. Your saved funds and custom configurations are safe.
               </p>
             </div>
 

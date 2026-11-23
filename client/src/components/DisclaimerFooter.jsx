@@ -15,7 +15,7 @@ const DisclaimerFooter = () => {
 
         <div className="flex items-center gap-2 text-[11px] text-slate-500 font-mono shrink-0">
           <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-          <span>Snazzy Wealth FundLens • AMFI Verified</span>
+          <span>FundCompare Analytics • AMFI Verified</span>
         </div>
 
       </div>

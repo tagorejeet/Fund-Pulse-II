@@ -48,11 +48,8 @@ const Header = ({
               />
             </div>
             <div>
-              <span className="block text-[10px] font-bold tracking-[0.22em] uppercase text-[#CD9B30] dark:text-[#E0AD3B] leading-tight font-sans">
-                SNAZZY WEALTH
-              </span>
-              <h1 className="text-xl font-bold tracking-tight text-[#061C41] dark:text-white font-sans leading-tight mt-0.5 flex items-center gap-1.5">
-                <span>FundLens</span>
+              <h1 className="text-xl font-bold tracking-tight text-[#061C41] dark:text-white font-sans leading-tight flex items-center gap-1.5">
+                <span>FundCompare</span>
                 <span className="hidden sm:inline-block px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                   Analytics
                 </span>
