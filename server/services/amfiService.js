@@ -584,85 +584,70 @@ class AmfiService {
           return [];
         }
 
-        // Try candidate date and roll back up to 6 days for weekends/market holidays
-        for (let offset = 0; offset <= 6; offset++) {
-          const cand = new Date(parsedDate);
-          cand.setDate(parsedDate.getDate() - offset);
-          const candStr = formatAmfiDate(cand);
-          const candCacheKey = `${candStr}_${category}_${subCategory}`;
+        const res = await fetch('https://www.amfiindia.com/gateway/pollingsebi/api/amfi/fundperformance', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Origin': 'https://www.amfiindia.com',
+            'Referer': 'https://www.amfiindia.com/polling/amfi/'
+          },
+          body: JSON.stringify({
+            maturityType: 1,
+            category,
+            subCategory,
+            mfid: 0,
+            reportDate: dateStr
+          }),
+          signal: AbortSignal.timeout(3500)
+        });
 
-          if (this.historicalAumCache.has(candCacheKey)) {
-            const cachedCand = this.historicalAumCache.get(candCacheKey);
-            if (Array.isArray(cachedCand) && cachedCand.length > 0) {
-              return cachedCand;
-            }
-          }
-
-          const res = await fetch('https://www.amfiindia.com/gateway/pollingsebi/api/amfi/fundperformance', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-              'Accept': 'application/json, text/plain, */*',
-              'Origin': 'https://www.amfiindia.com',
-              'Referer': 'https://www.amfiindia.com/polling/amfi/'
-            },
-            body: JSON.stringify({
-              maturityType: 1,
-              category,
-              subCategory,
-              mfid: 0,
-              reportDate: candStr
-            }),
-            signal: AbortSignal.timeout(8000)
-          });
-
-          if (res.ok) {
-            const json = await res.json();
-            const list = json.data || [];
-            if (list.length > 0) {
-              const entries = [];
-              list.forEach(item => {
-                if (item.schemeName) {
-                  const rawAum = (item.dailyAUM !== null && item.dailyAUM !== undefined && item.dailyAUM !== '')
-                    ? item.dailyAUM
-                    : ((item.preMonthAvgAUM !== null && item.preMonthAvgAUM !== undefined && item.preMonthAvgAUM !== '')
-                      ? item.preMonthAvgAUM
-                      : item.preMonthAUM);
-                  const parsedAum = (rawAum !== null && rawAum !== undefined && rawAum !== '' && !isNaN(Number(rawAum))) ? Number(rawAum) : null;
-                  entries.push({
-                    rawName: item.schemeName,
-                    cleanName: cleanSchemeName(item.schemeName),
-                    dailyAUM: parsedAum,
-                    benchmark: item.benchmark ? String(item.benchmark).trim() : 'N/A',
-                    riskometerScheme: item.riskometerScheme ? String(item.riskometerScheme).trim() : 'N/A',
-                    riskometerBenchmark: item.riskometerBenchmark ? String(item.riskometerBenchmark).trim() : 'N/A',
-                    navDate: item.navDate ? String(item.navDate) : candStr,
-                    navRegular: item.navRegular ? Number(item.navRegular) : null,
-                    navDirect: item.navDirect ? Number(item.navDirect) : null,
-                    preNavRegular: item.preNavRegular ? Number(item.preNavRegular) : null,
-                    preNavDirect: item.preNavDirect ? Number(item.preNavDirect) : null,
-                    return1YearRegular: item.return1YearRegular ? Number(item.return1YearRegular) : null,
-                    return1YearDirect: item.return1YearDirect ? Number(item.return1YearDirect) : null,
-                    return3YearRegular: item.return3YearRegular ? Number(item.return3YearRegular) : null,
-                    return3YearDirect: item.return3YearDirect ? Number(item.return3YearDirect) : null,
-                    return5YearRegular: item.return5YearRegular ? Number(item.return5YearRegular) : null,
-                    return5YearDirect: item.return5YearDirect ? Number(item.return5YearDirect) : null,
-                    return10YearRegular: item.return10YearRegular ? Number(item.return10YearRegular) : null,
-                    return10YearDirect: item.return10YearDirect ? Number(item.return10YearDirect) : null,
-                    benchmarkReturn1Year: item.return1YearBenchmark ? Number(item.return1YearBenchmark) : null,
-                    benchmarkReturn3Year: item.return3YearBenchmark ? Number(item.return3YearBenchmark) : null,
-                    benchmarkReturn5Year: item.return5YearBenchmark ? Number(item.return5YearBenchmark) : null,
-                    benchmarkReturn10Year: item.return10YearBenchmark ? Number(item.return10YearBenchmark) : null
-                  });
-                }
-              });
-
-              if (entries.length > 0) {
-                this.historicalAumCache.set(candCacheKey, entries);
-                this.scheduleHistAumCacheSave();
-                return entries;
+        if (res.ok) {
+          const json = await res.json();
+          const list = json.data || [];
+          if (list.length > 0) {
+            const entries = [];
+            list.forEach(item => {
+              if (item.schemeName) {
+                const rawAum = (item.dailyAUM !== null && item.dailyAUM !== undefined && item.dailyAUM !== '')
+                  ? item.dailyAUM
+                  : ((item.preMonthAvgAUM !== null && item.preMonthAvgAUM !== undefined && item.preMonthAvgAUM !== '')
+                    ? item.preMonthAvgAUM
+                    : item.preMonthAUM);
+                const parsedAum = (rawAum !== null && rawAum !== undefined && rawAum !== '' && !isNaN(Number(rawAum))) ? Number(rawAum) : null;
+                entries.push({
+                  rawName: item.schemeName,
+                  cleanName: cleanSchemeName(item.schemeName),
+                  dailyAUM: parsedAum,
+                  benchmark: item.benchmark ? String(item.benchmark).trim() : 'N/A',
+                  riskometerScheme: item.riskometerScheme ? String(item.riskometerScheme).trim() : 'N/A',
+                  riskometerBenchmark: item.riskometerBenchmark ? String(item.riskometerBenchmark).trim() : 'N/A',
+                  navDate: item.navDate ? String(item.navDate) : dateStr,
+                  navRegular: item.navRegular ? Number(item.navRegular) : null,
+                  navDirect: item.navDirect ? Number(item.navDirect) : null,
+                  preNavRegular: item.preNavRegular ? Number(item.preNavRegular) : null,
+                  preNavDirect: item.preNavDirect ? Number(item.preNavDirect) : null,
+                  return1YearRegular: item.return1YearRegular ? Number(item.return1YearRegular) : null,
+                  return1YearDirect: item.return1YearDirect ? Number(item.return1YearDirect) : null,
+                  return3YearRegular: item.return3YearRegular ? Number(item.return3YearRegular) : null,
+                  return3YearDirect: item.return3YearDirect ? Number(item.return3YearDirect) : null,
+                  return5YearRegular: item.return5YearRegular ? Number(item.return5YearRegular) : null,
+                  return5YearDirect: item.return5YearDirect ? Number(item.return5YearDirect) : null,
+                  return10YearRegular: item.return10YearRegular ? Number(item.return10YearRegular) : null,
+                  return10YearDirect: item.return10YearDirect ? Number(item.return10YearDirect) : null,
+                  benchmarkReturn1Year: item.return1YearBenchmark ? Number(item.return1YearBenchmark) : null,
+                  benchmarkReturn3Year: item.return3YearBenchmark ? Number(item.return3YearBenchmark) : null,
+                  benchmarkReturn5Year: item.return5YearBenchmark ? Number(item.return5YearBenchmark) : null,
+                  benchmarkReturn10Year: item.return10YearBenchmark ? Number(item.return10YearBenchmark) : null
+                });
               }
+            });
+
+            if (entries.length > 0) {
+              this.historicalAumCache.set(cacheKey, entries);
+              this.scheduleHistAumCacheSave();
+              return entries;
             }
           }
         }
@@ -707,93 +692,164 @@ class AmfiService {
     const neededPairs = Array.from(pairMap.values());
     if (neededPairs.length === 0) return null;
 
-    // Fetch all needed pairs with bounded concurrency
+    // Fast-probe active date in AMFI fundperformance table (shared across all categories)
+    let resolvedDate = null;
+
+    // 1. Check if targetDate is already cached for category 1
+    if (this.historicalAumCache.has(`${targetFormatted}_1_1`)) {
+      resolvedDate = targetFormatted;
+    }
+
+    // 2. Check if targetDate is today or after master reportDate
+    const reportDateTime = this.reportDate ? parseNavDate(this.reportDate).getTime() : 0;
+    const isCurrentOrFuture = parsedDate.getTime() >= reportDateTime;
+
+    if (!resolvedDate && isCurrentOrFuture && this.reportDate) {
+      if (this.historicalAumCache.has(`${this.reportDate}_1_1`)) {
+        resolvedDate = this.reportDate;
+      }
+    }
+
+    // 3. Fast probe candidate dates (max 4 days rollback, 2000ms timeout)
+    if (!resolvedDate) {
+      const probeStartDate = (isCurrentOrFuture && this.reportDate) ? parseNavDate(this.reportDate) : parsedDate;
+      for (let offset = 0; offset <= 4; offset++) {
+        const cand = new Date(probeStartDate);
+        cand.setDate(probeStartDate.getDate() - offset);
+        const candStr = formatAmfiDate(cand);
+
+        if (this.historicalAumCache.has(`${candStr}_1_1`)) {
+          resolvedDate = candStr;
+          break;
+        }
+
+        try {
+          const probeRes = await fetch('https://www.amfiindia.com/gateway/pollingsebi/api/amfi/fundperformance', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+              'Origin': 'https://www.amfiindia.com',
+              'Referer': 'https://www.amfiindia.com/polling/amfi/'
+            },
+            body: JSON.stringify({ maturityType: 1, category: 1, subCategory: 1, mfid: 0, reportDate: candStr }),
+            signal: AbortSignal.timeout(2000)
+          });
+          if (probeRes.ok) {
+            const json = await probeRes.json();
+            if (json.data && json.data.length > 0) {
+              resolvedDate = candStr;
+              break;
+            }
+          }
+        } catch (e) {}
+      }
+    }
+
+    // Fallback: Default to reportDate or targetFormatted
+    if (!resolvedDate) {
+      resolvedDate = this.reportDate || targetFormatted;
+    }
+
+    // Fetch all needed pairs for ONLY this resolvedDate in parallel with bounded concurrency
     const allEntries = [];
     await pMap(neededPairs, async (p) => {
-      const entries = await this.fetchAmfiFundPerformancePair(targetFormatted, p.category, p.subCategory);
+      const entries = await this.fetchAmfiFundPerformancePair(resolvedDate, p.category, p.subCategory);
       if (entries && entries.length > 0) {
         for (const e of entries) allEntries.push(e);
       }
-    }, 6);
+    }, 8);
 
-    if (allEntries.length === 0) return null;
+    // If live/historical entries were fetched, build matching index
+    if (allEntries.length > 0) {
+      const cleanMap = new Map();
+      const tokenIndex = new Map();
+      const stopWords = new Set(['fund', 'direct', 'regular', 'plan', 'growth', 'option', 'scheme', 'series']);
 
-    // Build indexing maps for sub-millisecond matching
-    const cleanMap = new Map();
-    const tokenIndex = new Map();
-    const stopWords = new Set(['fund', 'direct', 'regular', 'plan', 'growth', 'option', 'scheme', 'series']);
-
-    allEntries.forEach(a => {
-      const cName = cleanSchemeName(a.rawName || a.schemeName || a.cleanName);
-      a.cleanName = cName;
-      cleanMap.set(cName, a);
-      const tokens = cName.split(' ').filter(w => w.length > 2 && !stopWords.has(w));
-      a._tokens = tokens;
-      a._tokensSet = new Set(tokens);
-      tokens.forEach(t => {
-        if (!tokenIndex.has(t)) tokenIndex.set(t, []);
-        tokenIndex.get(t).push(a);
+      allEntries.forEach(a => {
+        const cName = cleanSchemeName(a.rawName || a.schemeName || a.cleanName);
+        a.cleanName = cName;
+        cleanMap.set(cName, a);
+        const tokens = cName.split(' ').filter(w => w.length > 2 && !stopWords.has(w));
+        a._tokens = tokens;
+        a._tokensSet = new Set(tokens);
+        tokens.forEach(t => {
+          if (!tokenIndex.has(t)) tokenIndex.set(t, []);
+          tokenIndex.get(t).push(a);
+        });
       });
-    });
 
-    const findMatch = (displayName) => {
-      if (!displayName) return null;
-      const sClean = cleanSchemeName(displayName);
-      if (cleanMap.has(sClean)) return cleanMap.get(sClean);
+      const findMatch = (displayName) => {
+        if (!displayName) return null;
+        const sClean = cleanSchemeName(displayName);
+        if (cleanMap.has(sClean)) return cleanMap.get(sClean);
 
-      const sTokens = sClean.split(' ').filter(w => w.length > 2 && !stopWords.has(w));
-      if (sTokens.length >= 2) {
-        const primaryToken = sTokens[0];
-        const candidates = tokenIndex.get(primaryToken);
-        if (candidates && candidates.length > 0) {
-          const categoryTokens = ['largemidcap', 'largecap', 'midcap', 'smallcap', 'multicap', 'flexicap', 'elss', 'taxsaver', 'overnight', 'liquid', 'gilt', 'fof'];
-          const sCatTokens = sTokens.filter(t => categoryTokens.includes(t));
+        const sTokens = sClean.split(' ').filter(w => w.length > 2 && !stopWords.has(w));
+        if (sTokens.length >= 2) {
+          const primaryToken = sTokens[0];
+          const candidates = tokenIndex.get(primaryToken);
+          if (candidates && candidates.length > 0) {
+            const categoryTokens = ['largemidcap', 'largecap', 'midcap', 'smallcap', 'multicap', 'flexicap', 'elss', 'taxsaver', 'overnight', 'liquid', 'gilt', 'fof'];
+            const sCatTokens = sTokens.filter(t => categoryTokens.includes(t));
 
-          for (const a of candidates) {
-            const aCatTokens = a._tokens.filter(t => categoryTokens.includes(t));
-            if (sCatTokens.length > 0 && aCatTokens.length > 0 && sCatTokens[0] !== aCatTokens[0]) {
-              continue;
+            for (const a of candidates) {
+              const aCatTokens = a._tokens.filter(t => categoryTokens.includes(t));
+              if (sCatTokens.length > 0 && aCatTokens.length > 0 && sCatTokens[0] !== aCatTokens[0]) {
+                continue;
+              }
+              if ((a.cleanName.length > 5 && sClean.includes(a.cleanName)) ||
+                  (sClean.length > 5 && a.cleanName.includes(sClean))) {
+                return a;
+              }
             }
-            if ((a.cleanName.length > 5 && sClean.includes(a.cleanName)) ||
-                (sClean.length > 5 && a.cleanName.includes(sClean))) {
-              return a;
+            let best = null;
+            let highestOverlap = 0;
+            for (const a of candidates) {
+              const aCatTokens = a._tokens.filter(t => categoryTokens.includes(t));
+              if (sCatTokens.length > 0 && aCatTokens.length > 0 && sCatTokens[0] !== aCatTokens[0]) {
+                continue;
+              }
+              let overlap = 0;
+              for (const t of sTokens) {
+                if (a._tokensSet.has(t)) overlap++;
+              }
+              const ratio = overlap / Math.max(sTokens.length, a._tokens.length);
+              if (overlap >= 2 && ratio >= 0.55 && overlap > highestOverlap) {
+                highestOverlap = overlap;
+                best = a;
+              }
             }
+            if (best) return best;
           }
-          let best = null;
-          let highestOverlap = 0;
-          for (const a of candidates) {
-            const aCatTokens = a._tokens.filter(t => categoryTokens.includes(t));
-            if (sCatTokens.length > 0 && aCatTokens.length > 0 && sCatTokens[0] !== aCatTokens[0]) {
-              continue;
-            }
-            let overlap = 0;
-            for (const t of sTokens) {
-              if (a._tokensSet.has(t)) overlap++;
-            }
-            const ratio = overlap / Math.max(sTokens.length, a._tokens.length);
-            if (overlap >= 2 && ratio >= 0.55 && overlap > highestOverlap) {
-              highestOverlap = overlap;
-              best = a;
-            }
-          }
-          if (best) return best;
         }
-      }
-      return null;
-    };
+        return null;
+      };
 
-    const resultMap = new Map();
+      const resultMap = new Map();
+      schemes.forEach(s => {
+        const match = findMatch(s.displayName) || findMatch(s.amfiSchemeName);
+        if (match) {
+          resultMap.set(s.id, match);
+        }
+      });
+
+      const effectiveDateStr = allEntries[0]?.navDate || resolvedDate;
+      return {
+        map: resultMap,
+        effectiveDate: effectiveDateStr
+      };
+    }
+
+    // Graceful fallback: If network times out, immediately return schemes' cached amfiMatch
+    const fallbackMap = new Map();
     schemes.forEach(s => {
-      const match = findMatch(s.displayName) || findMatch(s.amfiSchemeName);
-      if (match) {
-        resultMap.set(s.id, match);
+      if (s.amfiMatch) {
+        fallbackMap.set(s.id, s.amfiMatch);
       }
     });
-
-    const effectiveDateStr = allEntries[0]?.navDate || targetFormatted;
     return {
-      map: resultMap,
-      effectiveDate: effectiveDateStr
+      map: fallbackMap,
+      effectiveDate: this.reportDate || targetFormatted
     };
   }
 

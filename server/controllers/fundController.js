@@ -12,7 +12,14 @@ const logger = require('../utils/logger');
 const getFunds = async (req, res) => {
   try {
     const { category, subCategory, search, plan = 'regular', option = 'all', page = 1, limit = 50, days, customDays, startDate, endDate, asOfDate, calculationDate, date } = req.query;
-    const resolvedAsOfDate = asOfDate || calculationDate || date || null;
+    let resolvedAsOfDate = asOfDate || calculationDate || date || null;
+    if (resolvedAsOfDate && amfiService.reportDate) {
+      const targetTime = amfiService.parseNavDate(resolvedAsOfDate).getTime();
+      const reportTime = amfiService.parseNavDate(amfiService.reportDate).getTime();
+      if (targetTime >= reportTime) {
+        resolvedAsOfDate = amfiService.reportDate;
+      }
+    }
 
     const result = await amfiService.getFunds({
       category,
@@ -62,7 +69,14 @@ const getFunds = async (req, res) => {
 const getBatchFunds = async (req, res) => {
   try {
     const { ids = [], plan = 'regular', days, customDays, startDate, endDate, asOfDate, calculationDate, date } = req.body;
-    const resolvedAsOfDate = asOfDate || calculationDate || date || null;
+    let resolvedAsOfDate = asOfDate || calculationDate || date || null;
+    if (resolvedAsOfDate && amfiService.reportDate) {
+      const targetTime = amfiService.parseNavDate(resolvedAsOfDate).getTime();
+      const reportTime = amfiService.parseNavDate(amfiService.reportDate).getTime();
+      if (targetTime >= reportTime) {
+        resolvedAsOfDate = amfiService.reportDate;
+      }
+    }
 
     const result = await amfiService.getBatchFunds({
       ids,

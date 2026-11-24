@@ -511,6 +511,13 @@ export function App() {
           reportDate: res.data.reportDate,
           lastUpdated: res.data.lastUpdated || prev?.lastUpdated || new Date().toISOString()
         }));
+        if (!isDateManuallyChangedRef.current) {
+          const resolvedIso = formatAmfiDateToIso(res.data.reportDate);
+          if (resolvedIso && resolvedIso !== calculationDate) {
+            setCalculationDate(resolvedIso);
+            setEndDate(resolvedIso);
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to load custom fund list details:', err);
@@ -555,6 +562,13 @@ export function App() {
           reportDate: res.data.reportDate,
           lastUpdated: res.data.lastUpdated || prev?.lastUpdated || new Date().toISOString()
         }));
+        if (!isDateManuallyChangedRef.current) {
+          const resolvedIso = formatAmfiDateToIso(res.data.reportDate);
+          if (resolvedIso && resolvedIso !== calculationDate) {
+            setCalculationDate(resolvedIso);
+            setEndDate(resolvedIso);
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to load suggestion fund list details:', err);
