@@ -142,6 +142,16 @@ function formatAmfiDate(dateObj) {
   return `${day}-${month}-${year}`;
 }
 
+function formatAmfiDateToIso(dateInput) {
+  if (!dateInput) return null;
+  const d = (dateInput instanceof Date) ? dateInput : parseNavDate(dateInput);
+  if (isNaN(d.getTime()) || d.getTime() === 0) return null;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function cleanSchemeName(name) {
   return (name || '')
     .toLowerCase()
@@ -584,9 +594,6 @@ class AmfiService {
           if (this.historicalAumCache.has(candCacheKey)) {
             const cachedCand = this.historicalAumCache.get(candCacheKey);
             if (Array.isArray(cachedCand) && cachedCand.length > 0) {
-              if (candStr !== dateStr) {
-                this.historicalAumCache.set(cacheKey, cachedCand);
-              }
               return cachedCand;
             }
           }
@@ -653,9 +660,6 @@ class AmfiService {
 
               if (entries.length > 0) {
                 this.historicalAumCache.set(candCacheKey, entries);
-                if (candStr !== dateStr) {
-                  this.historicalAumCache.set(cacheKey, entries);
-                }
                 this.scheduleHistAumCacheSave();
                 return entries;
               }
@@ -794,70 +798,113 @@ class AmfiService {
   }
 
   /**
+   * Helper to robustly extract the latest market date with comprehensive coverage from NAVAll.txt
+   */
+  extractLatestMarketDateFromNavAll(text) {
+    if (!text) return null;
+    const lines = text.split('\n');
+    const dateCounts = new Map();
+    const today = new Date();
+    // Only consider dates on or before today
+    for (const l of lines) {
+      const parts = l.trim().split(';');
+      if (parts.length >= 8 && parts[7]?.trim()) {
+        const dStr = parts[7].trim();
+        const pDate = parseNavDate(dStr);
+        if (!isNaN(pDate.getTime()) && pDate.getTime() <= today.getTime()) {
+          dateCounts.set(dStr, (dateCounts.get(dStr) || 0) + 1);
+        }
+      }
+    }
+    if (dateCounts.size === 0) return null;
+
+    // Filter dates with comprehensive market coverage (>= 500 schemes), otherwise fallback to highest volume
+    let bestDate = null;
+    let maxCount = 0;
+    let mostFrequentDate = null;
+
+    for (const [dStr, count] of dateCounts.entries()) {
+      if (count > maxCount) {
+        maxCount = count;
+        mostFrequentDate = dStr;
+      }
+      if (count >= 500) {
+        if (!bestDate || parseNavDate(dStr).getTime() > parseNavDate(bestDate).getTime()) {
+          bestDate = dStr;
+        }
+      }
+    }
+
+    return bestDate || mostFrequentDate;
+  }
+
+  /**
    * Resolves the latest available mutual fund NAV date across India from authoritative feeds
    */
-  async resolveLatestNavDate() {
+  async resolveLatestNavDate(force = false) {
     let maxDate = null;
 
-    // 1. Scan in-memory schemes if available
-    if (this.masterSchemes && this.masterSchemes.length > 0) {
-      for (const s of this.masterSchemes) {
-        if (s.navDate) {
-          if (!maxDate || parseNavDate(s.navDate).getTime() > parseNavDate(maxDate).getTime()) {
-            maxDate = s.navDate;
-          }
-        }
-      }
-    }
-
-    // 2. Scan in-memory navHistoryCache
-    for (const entry of this.navHistoryCache.values()) {
-      if (entry?.navList?.[0]?.date) {
-        const d = entry.navList[0].date;
-        if (!maxDate || parseNavDate(d).getTime() > parseNavDate(maxDate).getTime()) {
-          maxDate = d;
-        }
-      }
-    }
-
-    // 3. Scan disk cache of NAVAll.txt for maximum date
-    if (fs.existsSync(NAVALL_CACHE_FILE)) {
+    // 1. Live fetch from official AMFI NAVAll.txt if force is true
+    if (force) {
       try {
-        const text = fs.readFileSync(NAVALL_CACHE_FILE, 'utf-8');
-        const lines = text.split('\n');
-        for (let l of lines) {
-          const parts = l.trim().split(';');
-          if (parts.length >= 8 && parts[7]?.trim()) {
-            const d = parts[7].trim();
-            if (!maxDate || parseNavDate(d).getTime() > parseNavDate(maxDate).getTime()) {
-              maxDate = d;
+        const res = await fetch('https://www.amfiindia.com/spages/NAVAll.txt', {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+          signal: AbortSignal.timeout(15000)
+        });
+        if (res.ok) {
+          const text = await res.text();
+          if (text && text.length > 1000) {
+            const detected = this.extractLatestMarketDateFromNavAll(text);
+            if (detected) {
+              maxDate = detected;
+              if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+              fs.writeFileSync(NAVALL_CACHE_FILE, text, 'utf-8');
             }
           }
+        }
+      } catch (err) {
+        logger.warn(`Could not force resolve latest NAV date from live NAVAll.txt: ${err.message}`);
+      }
+    }
+
+    // 2. Scan disk cache of NAVAll.txt for comprehensive market date
+    if (!maxDate && fs.existsSync(NAVALL_CACHE_FILE)) {
+      try {
+        const text = fs.readFileSync(NAVALL_CACHE_FILE, 'utf-8');
+        const detected = this.extractLatestMarketDateFromNavAll(text);
+        if (detected) {
+          maxDate = detected;
         }
       } catch (e) {}
     }
 
-    // 4. Live fetch from official AMFI NAVAll.txt if network allows
-    try {
-      const res = await fetch('https://www.amfiindia.com/spages/NAVAll.txt', {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-        signal: AbortSignal.timeout(6000)
-      });
-      if (res.ok) {
-        const text = await res.text();
-        const lines = text.split('\n');
-        for (let l of lines) {
-          const parts = l.trim().split(';');
-          if (parts.length >= 8 && parts[7]?.trim()) {
-            const d = parts[7].trim();
-            if (!maxDate || parseNavDate(d).getTime() > parseNavDate(maxDate).getTime()) {
-              maxDate = d;
-            }
+    // 3. Scan in-memory schemes if available
+    if (!maxDate && this.masterSchemes && this.masterSchemes.length > 0) {
+      const counts = new Map();
+      for (const s of this.masterSchemes) {
+        if (s.navDate) {
+          counts.set(s.navDate, (counts.get(s.navDate) || 0) + 1);
+        }
+      }
+      for (const [d, count] of counts.entries()) {
+        if (count >= 50) {
+          if (!maxDate || parseNavDate(d).getTime() > parseNavDate(maxDate).getTime()) {
+            maxDate = d;
           }
         }
       }
-    } catch (err) {
-      logger.warn(`Could not resolve latest NAV date from official AMFI NAVAll.txt: ${err.message}`);
+    }
+
+    // 4. Scan in-memory navHistoryCache
+    if (!maxDate) {
+      for (const entry of this.navHistoryCache.values()) {
+        if (entry?.navList?.[0]?.date) {
+          const d = entry.navList[0].date;
+          if (!maxDate || parseNavDate(d).getTime() > parseNavDate(maxDate).getTime()) {
+            maxDate = d;
+          }
+        }
+      }
     }
 
     if (maxDate && (!this.reportDate || parseNavDate(maxDate).getTime() > parseNavDate(this.reportDate).getTime())) {
@@ -869,44 +916,43 @@ class AmfiService {
 
   /**
    * Fetch Live AUM, Benchmarks, and Riskometers directly from official AMFI Fund Performance endpoint
-   */
-  /**
-   * Fetch Live AUM, Benchmarks, and Riskometers directly from official AMFI Fund Performance endpoint
    * Covers all 5 AMFI Categories: Equity, Debt, Hybrid, Solution Oriented, and Other (Index/ETFs/FoFs)
    */
-  async fetchAmfiLiveAumData(allowBackgroundRefresh = true) {
-    let diskCache = null;
-    try {
-      if (fs.existsSync(AUM_CACHE_FILE)) {
-        const raw = fs.readFileSync(AUM_CACHE_FILE, 'utf-8');
-        const parsed = JSON.parse(raw);
-        if (parsed && Array.isArray(parsed.entries) && parsed.entries.length > 0) {
-          diskCache = parsed;
-          if (parsed.reportDate) {
-            if (!this.reportDate || parseNavDate(parsed.reportDate).getTime() > parseNavDate(this.reportDate).getTime()) {
-              this.reportDate = parsed.reportDate;
+  async fetchAmfiLiveAumData(allowBackgroundRefresh = true, force = false) {
+    if (!force) {
+      let diskCache = null;
+      try {
+        if (fs.existsSync(AUM_CACHE_FILE)) {
+          const raw = fs.readFileSync(AUM_CACHE_FILE, 'utf-8');
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.entries) && parsed.entries.length > 0) {
+            diskCache = parsed;
+            if (parsed.reportDate) {
+              if (!this.reportDate || parseNavDate(parsed.reportDate).getTime() > parseNavDate(this.reportDate).getTime()) {
+                this.reportDate = parsed.reportDate;
+              }
+            }
+
+            const cacheAgeMs = Date.now() - new Date(parsed.savedAt || 0).getTime();
+            const isStale = cacheAgeMs >= 24 * 60 * 60 * 1000;
+
+            if (!isStale) {
+              logger.info(`Using warm AMFI AUM disk cache with ${parsed.entries.length} schemes (saved ${Math.round(cacheAgeMs / 60000)}m ago).`);
+              return parsed.entries;
+            } else if (allowBackgroundRefresh) {
+              logger.info(`Using existing AMFI AUM disk cache (${parsed.entries.length} schemes) while triggering background revalidation...`);
+              setTimeout(() => {
+                this.refreshAmfiLiveAumData().catch(e => {
+                  logger.warn(`Background AUM refresh failed: ${e.message}`);
+                });
+              }, 1000);
+              return parsed.entries;
             }
           }
-
-          const cacheAgeMs = Date.now() - new Date(parsed.savedAt || 0).getTime();
-          const isStale = cacheAgeMs >= 24 * 60 * 60 * 1000;
-
-          if (!isStale) {
-            logger.info(`Using warm AMFI AUM disk cache with ${parsed.entries.length} schemes (saved ${Math.round(cacheAgeMs / 60000)}m ago).`);
-            return parsed.entries;
-          } else if (allowBackgroundRefresh) {
-            logger.info(`Using existing AMFI AUM disk cache (${parsed.entries.length} schemes) while triggering background revalidation...`);
-            setTimeout(() => {
-              this.refreshAmfiLiveAumData().catch(e => {
-                logger.warn(`Background AUM refresh failed: ${e.message}`);
-              });
-            }, 1000);
-            return parsed.entries;
-          }
         }
+      } catch (e) {
+        logger.warn(`Could not read AMFI AUM disk cache: ${e.message}`);
       }
-    } catch (e) {
-      logger.warn(`Could not read AMFI AUM disk cache: ${e.message}`);
     }
 
     return this.refreshAmfiLiveAumData();
@@ -1083,24 +1129,45 @@ class AmfiService {
   /**
    * Initialize and build the master index of all Indian Mutual Fund schemes with real AMFI AUM
    */
-  async initializeMasterRegistry() {
-    if (this.isInitialized && this.masterSchemes.length > 0) return;
+  async initializeMasterRegistry(force = false) {
+    if (!force && this.isInitialized && this.masterSchemes.length > 0) return;
 
-    if (this.inFlightInitPromise) {
+    if (!force && this.inFlightInitPromise) {
       return this.inFlightInitPromise;
     }
 
     this.inFlightInitPromise = (async () => {
-      logger.info('Initializing complete Indian Mutual Fund Master Scheme Registry...');
+      logger.info(`Initializing complete Indian Mutual Fund Master Scheme Registry${force ? ' (forced live refresh)' : ''}...`);
       const startTime = Date.now();
 
       try {
-        // 1. Fetch live AMFI AUM dataset across all categories
-        const amfiList = await this.fetchAmfiLiveAumData();
+        // 1. Fetch live AMFI AUM dataset across all categories (force live refresh if requested)
+        const amfiList = await this.fetchAmfiLiveAumData(!force, force);
 
         // 2. Fetch full master scheme directory directly from official AMFI NAVAll.txt with instant disk cache fast-boot
         let text = '';
-        if (fs.existsSync(NAVALL_CACHE_FILE)) {
+        if (force) {
+          try {
+            logger.info('Manual refresh: Fetching fresh NAVAll.txt synchronously from AMFI...');
+            const res = await fetch('https://www.amfiindia.com/spages/NAVAll.txt', {
+              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+              signal: AbortSignal.timeout(20000)
+            });
+            if (res.ok) {
+              const freshText = await res.text();
+              if (freshText && freshText.length > 1000) {
+                text = freshText;
+                if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+                fs.writeFileSync(NAVALL_CACHE_FILE, freshText, 'utf-8');
+                logger.info('Manual refresh: Successfully persisted fresh NAVAll.txt to disk cache.');
+              }
+            }
+          } catch (forceErr) {
+            logger.warn(`Could not force live fetch NAVAll.txt: ${forceErr.message}. Falling back to disk cache.`);
+          }
+        }
+
+        if (!text && fs.existsSync(NAVALL_CACHE_FILE)) {
           try {
             text = fs.readFileSync(NAVALL_CACHE_FILE, 'utf-8');
             logger.info(`Fast-boot: Loaded master scheme list from disk cache (${NAVALL_CACHE_FILE}).`);
@@ -1119,17 +1186,7 @@ class AmfiService {
                     fs.writeFileSync(NAVALL_CACHE_FILE, freshText, 'utf-8');
                     logger.info('Background update: Persisted fresh NAVAll.txt from AMFI to disk cache.');
 
-                    let bgLatestDate = null;
-                    const fLines = freshText.split('\n');
-                    for (const fl of fLines) {
-                      const p = fl.trim().split(';');
-                      if (p.length >= 8 && p[7]?.trim()) {
-                        const d = p[7].trim();
-                        if (!bgLatestDate || parseNavDate(d).getTime() > parseNavDate(bgLatestDate).getTime()) {
-                          bgLatestDate = d;
-                        }
-                      }
-                    }
+                    const bgLatestDate = this.extractLatestMarketDateFromNavAll(freshText);
                     if (bgLatestDate && (!this.reportDate || parseNavDate(bgLatestDate).getTime() > parseNavDate(this.reportDate).getTime())) {
                       this.reportDate = bgLatestDate;
                       logger.info(`Background update: Advanced AMFI reportDate to ${bgLatestDate}`);
@@ -1172,7 +1229,6 @@ class AmfiService {
         const rawList = [];
         let currentCategory = '';
         let currentAmc = '';
-        let detectedNavDate = null;
 
         for (let line of lines) {
           line = line.trim();
@@ -1198,11 +1254,6 @@ class AmfiService {
             const navDate = parts[7]?.trim() || '';
 
             if (schemeCode && schemeName) {
-              if (navDate) {
-                if (!detectedNavDate || parseNavDate(navDate).getTime() > parseNavDate(detectedNavDate).getTime()) {
-                  detectedNavDate = navDate;
-                }
-              }
               let fullName = schemeName;
               if (plan && !fullName.toLowerCase().includes(plan.toLowerCase())) {
                 fullName += ` - ${plan}`;
@@ -1225,6 +1276,8 @@ class AmfiService {
             }
           }
         }
+
+        const detectedNavDate = this.extractLatestMarketDateFromNavAll(text);
         if (detectedNavDate) {
           if (!this.reportDate || parseNavDate(detectedNavDate).getTime() > parseNavDate(this.reportDate).getTime()) {
             this.reportDate = detectedNavDate;
@@ -2337,14 +2390,25 @@ class AmfiService {
 
         const isDir = plan.toLowerCase() === 'direct';
 
-        const navRegular = (histMatch && histMatch.navRegular)
-          ? histMatch.navRegular
-          : (computed.regNav || (isDir ? null : computed.currentNav) || scheme.navRegular || null);
-        const navDirect = (histMatch && histMatch.navDirect)
-          ? histMatch.navDirect
-          : (computed.dirNav || (isDir ? computed.currentNav : null) || scheme.navDirect || null);
-        const currentNav = (isDir ? (navDirect || navRegular) : (navRegular || navDirect)) || computed.currentNav;
-        const navDate = (histMatch && histMatch.navDate) || computed.navDate || (histAumRes?.effectiveDate) || (asOfDate ? formatAmfiDate(parseNavDate(asOfDate)) : this.reportDate);
+        const computedNavTime = computed.navDate ? parseNavDate(computed.navDate).getTime() : 0;
+        const histNavTime = histMatch?.navDate ? parseNavDate(histMatch.navDate).getTime() : 0;
+
+        let navRegular = null;
+        let navDirect = null;
+        let currentNav = null;
+        let navDate = null;
+
+        if (histMatch && histNavTime > computedNavTime) {
+          navRegular = histMatch.navRegular || computed.regNav || scheme.navRegular || null;
+          navDirect = histMatch.navDirect || computed.dirNav || scheme.navDirect || null;
+          currentNav = isDir ? (navDirect || navRegular) : (navRegular || navDirect);
+          navDate = histMatch.navDate;
+        } else {
+          navRegular = computed.regNav || (isDir ? null : computed.currentNav) || histMatch?.navRegular || scheme.navRegular || null;
+          navDirect = computed.dirNav || (isDir ? computed.currentNav : null) || histMatch?.navDirect || scheme.navDirect || null;
+          currentNav = computed.currentNav || (isDir ? (navDirect || navRegular) : (navRegular || navDirect));
+          navDate = computed.navDate || histMatch?.navDate || histAumRes?.effectiveDate || this.reportDate;
+        }
 
         return {
           id: scheme.id,
@@ -2405,16 +2469,15 @@ class AmfiService {
       this.reportDate = latestFundNavDate;
     }
 
-    let finalReportDate = histAumRes?.effectiveDate;
+    let finalReportDate = latestFundNavDate;
+    if (!finalReportDate || (histAumRes?.effectiveDate && parseNavDate(histAumRes.effectiveDate).getTime() > parseNavDate(finalReportDate).getTime())) {
+      finalReportDate = histAumRes?.effectiveDate;
+    }
     if (!finalReportDate) {
       if (asOfDate) {
-        finalReportDate = latestFundNavDate || formatAmfiDate(parseNavDate(asOfDate));
-      } else if (latestFundNavDate && this.reportDate) {
-        finalReportDate = parseNavDate(latestFundNavDate).getTime() > parseNavDate(this.reportDate).getTime()
-          ? latestFundNavDate
-          : this.reportDate;
+        finalReportDate = formatAmfiDate(parseNavDate(asOfDate));
       } else {
-        finalReportDate = latestFundNavDate || this.reportDate;
+        finalReportDate = this.reportDate;
       }
     }
 
@@ -2490,14 +2553,25 @@ class AmfiService {
 
         const isDir = plan.toLowerCase() === 'direct';
 
-        const navRegular = (histMatch && histMatch.navRegular)
-          ? histMatch.navRegular
-          : (computed.regNav || (isDir ? null : computed.currentNav) || scheme.navRegular || null);
-        const navDirect = (histMatch && histMatch.navDirect)
-          ? histMatch.navDirect
-          : (computed.dirNav || (isDir ? computed.currentNav : null) || scheme.navDirect || null);
-        const currentNav = (isDir ? (navDirect || navRegular) : (navRegular || navDirect)) || computed.currentNav;
-        const navDate = (histMatch && histMatch.navDate) || computed.navDate || (histAumRes?.effectiveDate) || (asOfDate ? formatAmfiDate(parseNavDate(asOfDate)) : this.reportDate);
+        const computedNavTime = computed.navDate ? parseNavDate(computed.navDate).getTime() : 0;
+        const histNavTime = histMatch?.navDate ? parseNavDate(histMatch.navDate).getTime() : 0;
+
+        let navRegular = null;
+        let navDirect = null;
+        let currentNav = null;
+        let navDate = null;
+
+        if (histMatch && histNavTime > computedNavTime) {
+          navRegular = histMatch.navRegular || computed.regNav || scheme.navRegular || null;
+          navDirect = histMatch.navDirect || computed.dirNav || scheme.navDirect || null;
+          currentNav = isDir ? (navDirect || navRegular) : (navRegular || navDirect);
+          navDate = histMatch.navDate;
+        } else {
+          navRegular = computed.regNav || (isDir ? null : computed.currentNav) || histMatch?.navRegular || scheme.navRegular || null;
+          navDirect = computed.dirNav || (isDir ? computed.currentNav : null) || histMatch?.navDirect || scheme.navDirect || null;
+          currentNav = computed.currentNav || (isDir ? (navDirect || navRegular) : (navRegular || navDirect));
+          navDate = computed.navDate || histMatch?.navDate || histAumRes?.effectiveDate || this.reportDate;
+        }
 
         return {
           id: scheme.id,
@@ -2566,16 +2640,15 @@ class AmfiService {
       this.reportDate = latestFundNavDate;
     }
 
-    let finalReportDate = histAumRes?.effectiveDate;
+    let finalReportDate = latestFundNavDate;
+    if (!finalReportDate || (histAumRes?.effectiveDate && parseNavDate(histAumRes.effectiveDate).getTime() > parseNavDate(finalReportDate).getTime())) {
+      finalReportDate = histAumRes?.effectiveDate;
+    }
     if (!finalReportDate) {
       if (asOfDate) {
-        finalReportDate = latestFundNavDate || formatAmfiDate(parseNavDate(asOfDate));
-      } else if (latestFundNavDate && this.reportDate) {
-        finalReportDate = parseNavDate(latestFundNavDate).getTime() > parseNavDate(this.reportDate).getTime()
-          ? latestFundNavDate
-          : this.reportDate;
+        finalReportDate = formatAmfiDate(parseNavDate(asOfDate));
       } else {
-        finalReportDate = latestFundNavDate || this.reportDate;
+        finalReportDate = this.reportDate;
       }
     }
 
@@ -2592,5 +2665,6 @@ class AmfiService {
 const amfiServiceInstance = new AmfiService();
 amfiServiceInstance.formatAmfiDate = formatAmfiDate;
 amfiServiceInstance.parseNavDate = parseNavDate;
+amfiServiceInstance.formatAmfiDateToIso = formatAmfiDateToIso;
 
 module.exports = amfiServiceInstance;

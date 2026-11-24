@@ -260,13 +260,15 @@ const refreshData = async (req, res) => {
     // Reload persisted seed & runtime disk NAV cache
     amfiService.loadDiskNavCache();
 
-    await amfiService.initializeMasterRegistry();
+    // Force live registry refresh and live AUM poll
+    await amfiService.initializeMasterRegistry(true);
 
-    const latestNavDate = await amfiService.resolveLatestNavDate();
+    const latestNavDate = await amfiService.resolveLatestNavDate(true);
     if (latestNavDate && (!amfiService.reportDate || amfiService.parseNavDate(latestNavDate).getTime() > amfiService.parseNavDate(amfiService.reportDate).getTime())) {
       amfiService.reportDate = latestNavDate;
     }
     amfiService.lastUpdated = new Date().toISOString();
+    const isoDate = amfiService.formatAmfiDateToIso ? amfiService.formatAmfiDateToIso(amfiService.reportDate) : null;
 
     res.json({
       success: true,
@@ -274,6 +276,7 @@ const refreshData = async (req, res) => {
       data: {
         totalSchemes: amfiService.masterSchemes.length,
         reportDate: amfiService.reportDate,
+        isoDate,
         lastUpdated: amfiService.lastUpdated
       }
     });

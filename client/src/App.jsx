@@ -62,7 +62,36 @@ const DEFAULT_SUGGESTION_IDS = [
   'union-innovation-opportunity-growth'
 ];
 
+export const formatAmfiDateToIso = (dateStr) => {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const trimmed = dateStr.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  
+  const parts = trimmed.split(/[-/ ]/);
+  if (parts.length === 3) {
+    let day = parts[0];
+    let month = parts[1];
+    let year = parts[2];
+    
+    if (day.length === 4) {
+      return `${day}-${month.padStart(2, '0')}-${year.padStart(2, '0')}`;
+    }
+
+    const monthMap = {
+      jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+      jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
+    };
+
+    const mLower = month.toLowerCase().slice(0, 3);
+    const mNum = monthMap[mLower] || month.padStart(2, '0');
+    return `${year}-${mNum}-${day.padStart(2, '0')}`;
+  }
+  return null;
+};
+
 export function App() {
+  const isDateManuallyChangedRef = useRef(false);
+
   // Top-Level Application Mode: 'analysis' (Fund Analysis) | 'sip' (SIP Calculator)
   const [appMode, setAppMode] = useState('analysis');
 
@@ -426,6 +455,15 @@ export function App() {
         lastUpdated: res.data.lastUpdated,
         isCached: res.data.isCached
       });
+
+      // If user hasn't explicitly picked a date, auto-sync calculationDate to the latest available AMFI market date
+      if (!isDateManuallyChangedRef.current && effectiveReportDate) {
+        const resolvedIso = formatAmfiDateToIso(effectiveReportDate);
+        if (resolvedIso && resolvedIso !== calculationDate) {
+          setCalculationDate(resolvedIso);
+          setEndDate(resolvedIso);
+        }
+      }
     } catch (err) {
       if (err.name === 'AbortError') return;
       if (requestId === activeRequestIdRef.current) {
@@ -583,6 +621,7 @@ export function App() {
   };
 
   const handleSelectCalculationDate = (newDate) => {
+    isDateManuallyChangedRef.current = true;
     setCalculationDate(newDate);
     setEndDate(newDate);
     setPage(1);
@@ -729,11 +768,10 @@ export function App() {
     let amfiSuccess = false;
     let nseSuccess = false;
 
-    // Reset date to today on refresh so current/today's live values are shown
     const today = new Date().toISOString().split('T')[0];
-    setCalculationDate(today);
-    setEndDate(today);
     setPage(1);
+
+    let targetDate = calculationDate || today;
 
     try {
       const refreshRes = await triggerRefresh();
@@ -743,6 +781,15 @@ export function App() {
           reportDate: refreshRes.data.reportDate,
           lastUpdated: refreshRes.data.lastUpdated || new Date().toISOString()
         }));
+
+        // Dynamically adopt the latest verified AMFI date
+        const resolvedIso = refreshRes.data.isoDate || formatAmfiDateToIso(refreshRes.data.reportDate);
+        if (resolvedIso) {
+          targetDate = resolvedIso;
+          setCalculationDate(resolvedIso);
+          setEndDate(resolvedIso);
+          isDateManuallyChangedRef.current = false;
+        }
       }
       amfiSuccess = true;
     } catch (err) {
@@ -752,26 +799,26 @@ export function App() {
     setRefreshStatusMessage('Refreshing NSE data...');
     try {
       await triggerNSERefresh();
-      await loadNseIndices(today, customDaysList, startDate, today);
+      await loadNseIndices(targetDate, customDaysList, startDate, targetDate);
       nseSuccess = true;
     } catch (err) {
       console.error('NSE refresh error:', err);
     }
 
     try {
-      await loadFunds(activeCategory, searchQuery, selectedPlan, 1, customDaysList, startDate, today, today);
+      await loadFunds(activeCategory, searchQuery, selectedPlan, 1, customDaysList, startDate, targetDate, targetDate, activeDebtSubCategory);
       if (selectedFundIds.size > 0) {
-        await loadCustomFunds(selectedFundIds, selectedPlan, customDaysList, startDate, today, today);
+        await loadCustomFunds(selectedFundIds, selectedPlan, customDaysList, startDate, targetDate, targetDate);
       }
       if (suggestionFundIds.size > 0) {
-        await loadSuggestionFunds(suggestionFundIds, selectedPlan, customDaysList, startDate, today, today);
+        await loadSuggestionFunds(suggestionFundIds, selectedPlan, customDaysList, startDate, targetDate, targetDate);
       }
     } catch (err) {
       console.error('Reload error:', err);
     } finally {
       setIsRefreshing(false);
       if (amfiSuccess && nseSuccess) {
-        setRefreshStatusMessage('Data refreshed successfully. Showing today\'s values.');
+        setRefreshStatusMessage(`Data refreshed successfully. Showing ${targetDate} values.`);
       } else if (amfiSuccess && !nseSuccess) {
         setRefreshStatusMessage('AMFI refreshed successfully. NSE data could not be refreshed.');
       } else if (!amfiSuccess && nseSuccess) {
@@ -785,15 +832,14 @@ export function App() {
 
   const handleRefreshNse = async () => {
     setIsLoadingNse(true);
-    const today = new Date().toISOString().split('T')[0];
-    setCalculationDate(today);
-    setEndDate(today);
+    const targetDate = calculationDate || new Date().toISOString().split('T')[0];
     try {
       await triggerNSERefresh();
     } catch (err) {
       console.error('NSE refresh error:', err);
     }
-    await loadNseIndices(today, customDaysList, startDate, today);
+    await loadNseIndices(targetDate, customDaysList, startDate, targetDate);
+    setIsLoadingNse(false);
   };
 
   const categoryCountsMap = useMemo(() => {
