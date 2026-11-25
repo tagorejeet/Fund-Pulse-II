@@ -786,7 +786,11 @@ class AmfiService {
     await pMap(neededPairs, async (p) => {
       const entries = await this.fetchAmfiFundPerformancePair(resolvedDate, p.category, p.subCategory);
       if (entries && entries.length > 0) {
-        for (const e of entries) allEntries.push(e);
+        const pairKey = `${p.category}_${p.subCategory}`;
+        for (const e of entries) {
+          e._pairKey = pairKey;
+          allEntries.push(e);
+        }
       }
     }, 8);
 
@@ -799,7 +803,8 @@ class AmfiService {
       allEntries.forEach(a => {
         const cName = cleanSchemeName(a.rawName || a.schemeName || a.cleanName);
         a.cleanName = cName;
-        cleanMap.set(cName, a);
+        if (!cleanMap.has(cName)) cleanMap.set(cName, []);
+        cleanMap.get(cName).push(a);
         const tokens = cName.split(' ').filter(w => w.length > 2 && !stopWords.has(w));
         a._tokens = tokens;
         a._tokensSet = new Set(tokens);
@@ -809,10 +814,14 @@ class AmfiService {
         });
       });
 
-      const findMatch = (displayName) => {
-        if (!displayName) return null;
-        const sClean = cleanSchemeName(displayName);
-        if (cleanMap.has(sClean)) return cleanMap.get(sClean);
+      const findMatch = (nameToMatch, validPairKeys = null) => {
+        if (!nameToMatch) return null;
+        const sClean = cleanSchemeName(nameToMatch);
+        if (cleanMap.has(sClean)) {
+          const candidates = cleanMap.get(sClean);
+          const match = validPairKeys ? candidates.find(c => !c._pairKey || validPairKeys.has(c._pairKey)) : candidates[0];
+          if (match) return match;
+        }
 
         const sTokens = sClean.split(' ').filter(w => w.length > 2 && !stopWords.has(w));
         if (sTokens.length >= 2) {
@@ -823,6 +832,9 @@ class AmfiService {
             const sCatTokens = sTokens.filter(t => categoryTokens.includes(t));
 
             for (const a of candidates) {
+              if (validPairKeys && a._pairKey && !validPairKeys.has(a._pairKey)) {
+                continue;
+              }
               const aCatTokens = a._tokens.filter(t => categoryTokens.includes(t));
               if (sCatTokens.length > 0 && aCatTokens.length > 0 && sCatTokens[0] !== aCatTokens[0]) {
                 continue;
@@ -835,6 +847,9 @@ class AmfiService {
             let best = null;
             let highestOverlap = 0;
             for (const a of candidates) {
+              if (validPairKeys && a._pairKey && !validPairKeys.has(a._pairKey)) {
+                continue;
+              }
               const aCatTokens = a._tokens.filter(t => categoryTokens.includes(t));
               if (sCatTokens.length > 0 && aCatTokens.length > 0 && sCatTokens[0] !== aCatTokens[0]) {
                 continue;
@@ -857,7 +872,15 @@ class AmfiService {
 
       const resultMap = new Map();
       schemes.forEach(s => {
-        const match = findMatch(s.displayName) || findMatch(s.amfiSchemeName);
+        const pairs = this.getAmfiPairsForScheme(s);
+        const validPairKeys = (pairs && pairs.length > 0)
+          ? new Set(pairs.map(p => `${p.category}_${p.subCategory}`))
+          : null;
+
+        const match = (s.amfiSchemeName ? findMatch(s.amfiSchemeName, validPairKeys) : null) ||
+                      findMatch(s.displayName, validPairKeys) ||
+                      (s.amfiSchemeName ? findMatch(s.amfiSchemeName) : null) ||
+                      findMatch(s.displayName);
         if (match) {
           resultMap.set(s.id, match);
         }
@@ -1557,7 +1580,7 @@ class AmfiService {
 
         // 1. Seed the 34 allowlist schemes to guarantee exact IDs, display names, and AMFI AUM
         MASTER_ALLOWLIST.forEach(allowItem => {
-          const match = findAmfiMatch(allowItem.displayName) || findAmfiMatch(allowItem.amfiSchemeName);
+          const match = (allowItem.amfiSchemeName ? findAmfiMatch(allowItem.amfiSchemeName) : null) || findAmfiMatch(allowItem.displayName);
           const aumVal = match && match.dailyAUM ? match.dailyAUM : (allowItem.seedAUM || null);
 
           const item = {
