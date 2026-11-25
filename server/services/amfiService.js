@@ -572,22 +572,10 @@ class AmfiService {
   }
 
   clearRecentHistoricalAumCache(maxDays = 5) {
-    const now = Date.now();
-    let count = 0;
-    for (const [key] of this.historicalAumCache.entries()) {
-      const parts = key.split('_');
-      const dt = parts[0];
-      const parsed = parseNavDate(dt);
-      if (parsed && !isNaN(parsed.getTime())) {
-        const diffDays = (now - parsed.getTime()) / (1000 * 60 * 60 * 24);
-        if (diffDays >= 0 && diffDays <= maxDays) {
-          this.historicalAumCache.delete(key);
-          if (this.historicalAumFetchedAt) this.historicalAumFetchedAt.delete(key);
-          count++;
-        }
-      }
+    if (this.historicalAumFetchedAt) {
+      this.historicalAumFetchedAt.clear();
     }
-    logger.info(`Cleared ${count} recent historical AUM cache entries for fresh manual re-sync.`);
+    logger.info('Reset recent historical AUM fetch timestamps for revalidation (stale-while-revalidate preserved).');
   }
 
   async fetchAmfiFundPerformancePair(dateStr, category, subCategory) {
@@ -635,7 +623,7 @@ class AmfiService {
             mfid: 0,
             reportDate: dateStr
           }),
-          signal: AbortSignal.timeout(3500)
+          signal: AbortSignal.timeout(7500)
         });
 
         if (res.ok) {
@@ -775,7 +763,7 @@ class AmfiService {
               'Referer': 'https://www.amfiindia.com/polling/amfi/'
             },
             body: JSON.stringify({ maturityType: 1, category: primaryPair.category, subCategory: primaryPair.subCategory, mfid: 0, reportDate: candStr }),
-            signal: AbortSignal.timeout(2000)
+            signal: AbortSignal.timeout(4000)
           });
           if (probeRes.ok) {
             const json = await probeRes.json();

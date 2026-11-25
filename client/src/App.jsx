@@ -610,6 +610,7 @@ export function App() {
 
   // Load custom funds when custom tab is active, or gently preload after initial mount
   useEffect(() => {
+    if (isRefreshing) return;
     if (selectedFundIds && selectedFundIds.size > 0) {
       if (activeTab === 'custom') {
         loadCustomFunds(selectedFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate);
@@ -622,10 +623,11 @@ export function App() {
     } else {
       setCustomFunds([]);
     }
-  }, [selectedFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate, loadCustomFunds, activeTab]);
+  }, [selectedFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate, loadCustomFunds, activeTab, isRefreshing]);
 
   // Load suggestion sheet funds when suggestion tab is active, or gently preload after initial mount
   useEffect(() => {
+    if (isRefreshing) return;
     if (suggestionFundIds && suggestionFundIds.size > 0) {
       if (activeTab === 'suggestion') {
         loadSuggestionFunds(suggestionFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate);
@@ -638,7 +640,7 @@ export function App() {
     } else {
       setSuggestionFunds([]);
     }
-  }, [suggestionFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate, loadSuggestionFunds, activeTab]);
+  }, [suggestionFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate, loadSuggestionFunds, activeTab, isRefreshing]);
 
   const handleApplyCustomDays = ({ customDaysList: newDaysList, startDate: newStart, endDate: newEnd }) => {
     const validList = (newDaysList && newDaysList.length > 0) ? newDaysList : [33, 50, 67];
@@ -846,10 +848,9 @@ export function App() {
 
     try {
       await loadFunds(activeCategory, searchQuery, selectedPlan, 1, customDaysList, startDate, targetDate, targetDate, activeDebtSubCategory);
-      if (selectedFundIds.size > 0) {
+      if (activeTab === 'custom' && selectedFundIds.size > 0) {
         await loadCustomFunds(selectedFundIds, selectedPlan, customDaysList, startDate, targetDate, targetDate);
-      }
-      if (suggestionFundIds.size > 0) {
+      } else if (activeTab === 'suggestion' && suggestionFundIds.size > 0) {
         await loadSuggestionFunds(suggestionFundIds, selectedPlan, customDaysList, startDate, targetDate, targetDate);
       }
     } catch (err) {
