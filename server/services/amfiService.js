@@ -266,22 +266,42 @@ function categorizeScheme(schemeCategory, schemeName) {
   const cat = (schemeCategory || '').toLowerCase();
   const name = (schemeName || '').toLowerCase();
 
-  if (cat.includes('large & mid') || cat.includes('large and mid') || name.includes('large & mid') || name.includes('large and mid') || name.includes('vision')) return 'Large & Mid Cap';
-  if (cat.includes('large cap') || name.includes('large cap') || name.includes('bluechip') || name.includes('frontline') || name.includes('top 100')) return 'Large Cap';
-  if (cat.includes('mid cap') || name.includes('mid cap') || name.includes('midcap')) return 'Mid Cap';
-  if (cat.includes('small cap') || name.includes('small cap') || name.includes('smallcap')) return 'Small Cap';
-  if (cat.includes('multi cap') || name.includes('multi cap') || name.includes('multicap')) return 'Multi Cap';
-  if (cat.includes('flexi cap') || name.includes('flexi cap') || name.includes('flexicap')) return 'Flexi Cap';
-  if (cat.includes('value') || name.includes('value fund')) return 'Value';
-  if (cat.includes('contra') || name.includes('contra')) return 'Contra';
-  if (cat.includes('elss') || name.includes('elss') || name.includes('tax saver')) return 'ELSS';
-  if (cat.includes('dividend yield') || name.includes('dividend yield')) return 'Dividend Yield';
-  if (cat.includes('focused') || name.includes('focused')) return 'Focused';
-  if (cat.includes('sectoral') || cat.includes('thematic') || name.includes('consumption') || name.includes('pharma') || name.includes('tech') || (name.includes('banking') && !cat.includes('debt') && !name.includes('psu') && !name.includes('debt')) || name.includes('infra') || name.includes('innovation')) return 'Sectoral / Thematic';
-  if (cat.includes('index') || cat.includes('etf') || name.includes('index') || name.includes('nifty') || name.includes('sensex') || name.includes('etf')) return 'Index Funds';
-  if (cat.includes('hybrid') || cat.includes('arbitrage') || cat.includes('balanced') || name.includes('hybrid') || name.includes('balanced') || name.includes('arbitrage')) return 'Hybrid';
-  if (cat.includes('debt') || cat.includes('income') || cat.includes('liquid') || cat.includes('money market') || cat.includes('gilt') || cat.includes('overnight') || cat.includes('duration') || cat.includes('bond') || name.includes('liquid') || name.includes('overnight') || name.includes('short term') || name.includes('short duration') || name.includes('low duration') || name.includes('ultra short') || name.includes('money market') || name.includes('corporate bond') || name.includes('credit risk') || name.includes('gilt') || name.includes('floater') || name.includes('floating interest') || name.includes('dynamic bond') || name.includes('banking and psu') || name.includes('banking & psu') || name.includes('medium duration') || name.includes('medium term') || name.includes('long duration') || name.includes('long term')) return 'Debt / Liquid';
-  
+  // 1. Strict AMFI Official Regulatory Header Matching first
+  if (cat.includes('sectoral') || cat.includes('thematic')) return 'Sectoral / Thematic';
+  if (cat.includes('large & mid') || cat.includes('large and mid')) return 'Large & Mid Cap';
+  if (cat.includes('large cap')) return 'Large Cap';
+  if (cat.includes('mid cap') || cat.includes('midcap')) return 'Mid Cap';
+  if (cat.includes('small cap') || cat.includes('smallcap')) return 'Small Cap';
+  if (cat.includes('multi cap') || cat.includes('multicap')) return 'Multi Cap';
+  if (cat.includes('flexi cap') || cat.includes('flexicap')) return 'Flexi Cap';
+  if (cat.includes('focused')) return 'Focused';
+  if (cat.includes('value')) return 'Value';
+  if (cat.includes('contra')) return 'Contra';
+  if (cat.includes('dividend yield')) return 'Dividend Yield';
+  if (cat.includes('elss') || cat.includes('tax saver')) return 'ELSS';
+  if (cat.includes('index') || cat.includes('etf')) return 'Index Funds';
+  if (cat.includes('hybrid') || cat.includes('arbitrage') || cat.includes('balanced') || cat.includes('equity savings')) return 'Hybrid';
+  if (cat.includes('debt') || cat.includes('income') || cat.includes('liquid') || cat.includes('money market') || cat.includes('gilt') || cat.includes('overnight') || cat.includes('duration') || cat.includes('bond')) return 'Debt / Liquid';
+  if (cat.includes('solution') || cat.includes('children') || cat.includes('retirement')) return 'Other';
+
+  // 2. Name-based heuristics fallback only when AMFI header is generic or unclassified
+  if (name.includes('large & mid') || name.includes('large and mid') || name.includes('vision')) return 'Large & Mid Cap';
+  if (name.includes('large cap') || name.includes('frontline') || name.includes('top 100')) return 'Large Cap';
+  if (name.includes('mid cap') || name.includes('midcap')) return 'Mid Cap';
+  if (name.includes('small cap') || name.includes('smallcap')) return 'Small Cap';
+  if (name.includes('multi cap') || name.includes('multicap')) return 'Multi Cap';
+  if (name.includes('flexi cap') || name.includes('flexicap')) return 'Flexi Cap';
+  if (name.includes('focused')) return 'Focused';
+  if (name.includes('value fund')) return 'Value';
+  if (name.includes('contra')) return 'Contra';
+  if (name.includes('dividend yield')) return 'Dividend Yield';
+  if (name.includes('elss') || name.includes('tax saver')) return 'ELSS';
+  if (name.includes('consumption') || name.includes('pharma') || name.includes('tech') || (name.includes('banking') && !name.includes('psu') && !name.includes('debt')) || name.includes('infra') || name.includes('innovation')) return 'Sectoral / Thematic';
+  if (name.includes('index') || name.includes('nifty') || name.includes('sensex') || name.includes('etf')) return 'Index Funds';
+  if (name.includes('hybrid') || name.includes('balanced') || name.includes('arbitrage')) return 'Hybrid';
+  if (name.includes('liquid') || name.includes('overnight') || name.includes('short term') || name.includes('short duration') || name.includes('low duration') || name.includes('ultra short') || name.includes('money market') || name.includes('corporate bond') || name.includes('credit risk') || name.includes('gilt') || name.includes('floater') || name.includes('floating interest') || name.includes('dynamic bond') || name.includes('banking and psu') || name.includes('banking & psu') || name.includes('medium duration') || name.includes('medium term') || name.includes('long duration') || name.includes('long term')) return 'Debt / Liquid';
+  if (name.includes('bluechip')) return 'Large Cap';
+
   return 'Other';
 }
 
