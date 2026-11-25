@@ -382,6 +382,7 @@ class AmfiService {
     this.navHistoryCache = new Map(); // schemeCode -> { navList: [{date, nav}], timestamp }
     this.computedCache = new Map(); // cacheKey -> { data, timestamp }
     this.historicalAumCache = new Map(); // key `${dateStr}_${cat}_${subCat}` -> array of entries
+    this.historicalAumFetchedAt = new Map(); // key -> fetch timestamp
     this.inFlightHistAumPromises = new Map();
     this.dateToEffectiveDateMap = new Map();
     this._saveCacheTimer = null;
@@ -570,12 +571,41 @@ class AmfiService {
     return [{ category: 1, subCategory: 1 }];
   }
 
+  clearRecentHistoricalAumCache(maxDays = 5) {
+    const now = Date.now();
+    let count = 0;
+    for (const [key] of this.historicalAumCache.entries()) {
+      const parts = key.split('_');
+      const dt = parts[0];
+      const parsed = parseNavDate(dt);
+      if (parsed && !isNaN(parsed.getTime())) {
+        const diffDays = (now - parsed.getTime()) / (1000 * 60 * 60 * 24);
+        if (diffDays >= 0 && diffDays <= maxDays) {
+          this.historicalAumCache.delete(key);
+          if (this.historicalAumFetchedAt) this.historicalAumFetchedAt.delete(key);
+          count++;
+        }
+      }
+    }
+    logger.info(`Cleared ${count} recent historical AUM cache entries for fresh manual re-sync.`);
+  }
+
   async fetchAmfiFundPerformancePair(dateStr, category, subCategory) {
     const cacheKey = `${dateStr}_${category}_${subCategory}`;
+    const parsedDate = parseNavDate(dateStr);
+    const daysAgo = (parsedDate && !isNaN(parsedDate.getTime()))
+      ? (Date.now() - parsedDate.getTime()) / (1000 * 60 * 60 * 24)
+      : 999;
+    const isRecent = daysAgo >= 0 && daysAgo <= 5;
+    const fetchedAt = this.historicalAumFetchedAt ? this.historicalAumFetchedAt.get(cacheKey) : 0;
+    const isFresh = (Date.now() - (fetchedAt || 0)) < 60 * 60 * 1000; // 1-hour TTL for recent dates
+
     if (this.historicalAumCache.has(cacheKey)) {
       const cached = this.historicalAumCache.get(cacheKey);
       if (Array.isArray(cached) && cached.length > 0) {
-        return cached;
+        if (!isRecent || isFresh) {
+          return cached;
+        }
       }
     }
 
@@ -585,7 +615,6 @@ class AmfiService {
 
     const fetchPromise = (async () => {
       try {
-        const parsedDate = parseNavDate(dateStr);
         if (isNaN(parsedDate.getTime()) || parsedDate.getTime() === 0) {
           return [];
         }
@@ -652,6 +681,8 @@ class AmfiService {
 
             if (entries.length > 0) {
               this.historicalAumCache.set(cacheKey, entries);
+              if (!this.historicalAumFetchedAt) this.historicalAumFetchedAt = new Map();
+              this.historicalAumFetchedAt.set(cacheKey, Date.now());
               this.scheduleHistAumCacheSave();
               return entries;
             }
@@ -661,6 +692,10 @@ class AmfiService {
         logger.warn(`Failed to fetch AMFI Fund Performance for ${cacheKey}: ${err.message}`);
       } finally {
         this.inFlightHistAumPromises.delete(cacheKey);
+      }
+      const existing = this.historicalAumCache.get(cacheKey);
+      if (Array.isArray(existing) && existing.length > 0) {
+        return existing;
       }
       return [];
     })();
@@ -714,9 +749,7 @@ class AmfiService {
     const isCurrentOrFuture = parsedDate.getTime() >= reportDateTime;
 
     if (!resolvedDate && isCurrentOrFuture && groupReportDate) {
-      if (this.historicalAumCache.has(`${groupReportDate}_${primaryKey}`)) {
-        resolvedDate = groupReportDate;
-      }
+      resolvedDate = groupReportDate;
     }
 
     // 3. Fast probe candidate dates (max 4 days rollback, 2000ms timeout)
@@ -2048,8 +2081,12 @@ class AmfiService {
 
       // Determine if cache has records covering the requested target date
       let isUpToDate = false;
+      const reportTime = this.reportDate ? parseNavDate(this.reportDate).getTime() : 0;
       if (latestTime >= targetTime) {
         // Cache has records on or after the requested target date
+        isUpToDate = true;
+      } else if (reportTime > 0 && targetTime >= reportTime && latestTime >= reportTime) {
+        // Cache already has records up to the latest verified AMFI report date
         isUpToDate = true;
       } else {
         // Latest record is before targetDate. Check if targetDate is a weekend/holiday where Friday was the latest trading day:

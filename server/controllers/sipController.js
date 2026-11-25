@@ -36,6 +36,13 @@ const calculateSip = async (req, res) => {
     if (!resolvedCalcDate) {
       resolvedCalcDate = amfiService.reportDate || new Date().toISOString().split('T')[0];
     }
+    if (resolvedCalcDate && amfiService.reportDate) {
+      const targetTime = amfiService.parseNavDate(resolvedCalcDate).getTime();
+      const reportTime = amfiService.parseNavDate(amfiService.reportDate).getTime();
+      if (targetTime >= reportTime) {
+        resolvedCalcDate = amfiService.reportDate;
+      }
+    }
 
     if (!ids || ids.length === 0) {
       return res.json({

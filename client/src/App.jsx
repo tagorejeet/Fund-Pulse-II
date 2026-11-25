@@ -125,6 +125,8 @@ export function App() {
   const [page, setPage] = useState(1);
   const activeRequestIdRef = useRef(0);
   const abortControllerRef = useRef(null);
+  const customAbortRef = useRef(null);
+  const suggestionAbortRef = useRef(null);
 
   // Debounce search query to eliminate network race conditions and input lag
   useEffect(() => {
@@ -490,10 +492,17 @@ export function App() {
     calcDate = calculationDate
   ) => {
     if (!idsSet || idsSet.size === 0) {
+      if (customAbortRef.current) customAbortRef.current.abort();
       setCustomFunds([]);
       setCustomFundsError(null);
       return;
     }
+
+    if (customAbortRef.current) {
+      customAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    customAbortRef.current = controller;
 
     setIsCustomLoading(true);
     setCustomFundsError(null);
@@ -505,7 +514,8 @@ export function App() {
         days: formattedDays,
         startDate: sDate,
         endDate: eDate,
-        asOfDate: calcDate
+        asOfDate: calcDate,
+        signal: controller.signal
       });
       setCustomFunds(res.data?.funds || []);
       if (res.data?.reportDate) {
@@ -524,6 +534,7 @@ export function App() {
         }
       }
     } catch (err) {
+      if (err.name === 'AbortError') return;
       console.error('Failed to load custom fund list details:', err);
       setCustomFundsError(err.message || 'Server timeout or network error while fetching fund details.');
     } finally {
@@ -542,10 +553,17 @@ export function App() {
     calcDate = calculationDate
   ) => {
     if (!idsSet || idsSet.size === 0) {
+      if (suggestionAbortRef.current) suggestionAbortRef.current.abort();
       setSuggestionFunds([]);
       setSuggestionFundsError(null);
       return;
     }
+
+    if (suggestionAbortRef.current) {
+      suggestionAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    suggestionAbortRef.current = controller;
 
     setIsSuggestionLoading(true);
     setSuggestionFundsError(null);
@@ -557,7 +575,8 @@ export function App() {
         days: formattedDays,
         startDate: sDate,
         endDate: eDate,
-        asOfDate: calcDate
+        asOfDate: calcDate,
+        signal: controller.signal
       });
       setSuggestionFunds(res.data?.funds || []);
       if (res.data?.reportDate) {
@@ -576,6 +595,7 @@ export function App() {
         }
       }
     } catch (err) {
+      if (err.name === 'AbortError') return;
       console.error('Failed to load suggestion fund list details:', err);
       setSuggestionFundsError(err.message || 'Server timeout or network error while fetching fund details.');
     } finally {

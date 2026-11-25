@@ -122,7 +122,14 @@ const getFundById = async (req, res) => {
   try {
     const { id } = req.params;
     const { plan = 'regular', days, customDays, startDate, endDate, asOfDate, calculationDate, date } = req.query;
-    const resolvedAsOfDate = asOfDate || calculationDate || date || null;
+    let resolvedAsOfDate = asOfDate || calculationDate || date || null;
+    if (resolvedAsOfDate && amfiService.reportDate) {
+      const targetTime = amfiService.parseNavDate(resolvedAsOfDate).getTime();
+      const reportTime = amfiService.parseNavDate(amfiService.reportDate).getTime();
+      if (targetTime >= reportTime) {
+        resolvedAsOfDate = amfiService.reportDate;
+      }
+    }
 
     const scheme = amfiService.schemeMap.get(id);
 
@@ -277,6 +284,7 @@ const refreshData = async (req, res) => {
     amfiService.inFlightInitPromise = null;
     amfiService.navHistoryCache.clear();
     amfiService.computedCache.clear();
+    amfiService.clearRecentHistoricalAumCache(5);
 
     // Reload persisted seed & runtime disk NAV cache
     amfiService.loadDiskNavCache();
