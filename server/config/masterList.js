@@ -21,6 +21,50 @@ const CATEGORY_DISPLAY_ORDER = {
   'Other': 16
 };
 
+const ASSET_GROUPS = {
+  EQUITY: 'equity',
+  DEBT: 'debt',
+  HYBRID: 'hybrid',
+  OTHER: 'other'
+};
+
+const CATEGORY_TO_ASSET_GROUP = {
+  'Large Cap': ASSET_GROUPS.EQUITY,
+  'Mid Cap': ASSET_GROUPS.EQUITY,
+  'Large & Mid Cap': ASSET_GROUPS.EQUITY,
+  'Small Cap': ASSET_GROUPS.EQUITY,
+  'Multi Cap': ASSET_GROUPS.EQUITY,
+  'Value': ASSET_GROUPS.EQUITY,
+  'Flexi Cap': ASSET_GROUPS.EQUITY,
+  'Sectoral / Thematic': ASSET_GROUPS.EQUITY,
+  'ELSS': ASSET_GROUPS.EQUITY,
+  'Contra': ASSET_GROUPS.EQUITY,
+  'Dividend Yield': ASSET_GROUPS.EQUITY,
+  'Focused': ASSET_GROUPS.EQUITY,
+  'Index Funds': ASSET_GROUPS.EQUITY,
+  'Debt / Liquid': ASSET_GROUPS.DEBT,
+  'Hybrid': ASSET_GROUPS.HYBRID,
+  'Other': ASSET_GROUPS.OTHER
+};
+
+function getAssetGroupForCategory(category) {
+  if (!category || category === 'all' || category === 'All Schemes') return null;
+  const normalized = String(category).trim();
+  if (CATEGORY_TO_ASSET_GROUP[normalized]) return CATEGORY_TO_ASSET_GROUP[normalized];
+
+  const lower = normalized.toLowerCase();
+  if (lower.includes('debt') || lower.includes('liquid') || lower.includes('gilt') || lower.includes('bond') || lower.includes('money market')) {
+    return ASSET_GROUPS.DEBT;
+  }
+  if (lower.includes('hybrid') || lower.includes('balanced') || lower.includes('arbitrage')) {
+    return ASSET_GROUPS.HYBRID;
+  }
+  if (lower.includes('solution') || lower.includes('retirement') || lower.includes('children') || lower.includes('other') || lower.includes('fof')) {
+    return ASSET_GROUPS.OTHER;
+  }
+  return ASSET_GROUPS.EQUITY;
+}
+
 const MASTER_CATEGORIES = [
   { id: 'all', name: 'All Schemes', subCategoryId: 0 },
   { id: 'large-cap', name: 'Large Cap', subCategoryId: 1 },
@@ -673,5 +717,8 @@ const MASTER_ALLOWLIST = [
 module.exports = {
   CATEGORY_DISPLAY_ORDER,
   MASTER_CATEGORIES,
-  MASTER_ALLOWLIST
+  MASTER_ALLOWLIST,
+  ASSET_GROUPS,
+  CATEGORY_TO_ASSET_GROUP,
+  getAssetGroupForCategory
 };

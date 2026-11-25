@@ -452,6 +452,9 @@ export function App() {
       const effectiveReportDate = res.data.reportDate || res.data.funds?.[0]?.navDate;
       setMeta({
         reportDate: effectiveReportDate,
+        reportDates: res.data.reportDates,
+        groupReportDate: res.data.groupReportDate,
+        activeGroup: res.data.activeGroup,
         lastUpdated: res.data.lastUpdated,
         isCached: res.data.isCached
       });
@@ -509,6 +512,7 @@ export function App() {
         setMeta(prev => ({
           ...prev,
           reportDate: res.data.reportDate,
+          reportDates: res.data.reportDates || prev?.reportDates,
           lastUpdated: res.data.lastUpdated || prev?.lastUpdated || new Date().toISOString()
         }));
         if (!isDateManuallyChangedRef.current) {
@@ -560,6 +564,7 @@ export function App() {
         setMeta(prev => ({
           ...prev,
           reportDate: res.data.reportDate,
+          reportDates: res.data.reportDates || prev?.reportDates,
           lastUpdated: res.data.lastUpdated || prev?.lastUpdated || new Date().toISOString()
         }));
         if (!isDateManuallyChangedRef.current) {

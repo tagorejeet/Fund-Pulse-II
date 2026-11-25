@@ -96,6 +96,8 @@ const Header = ({
                 isCached={meta.isCached}
                 lastUpdated={meta.lastUpdated}
                 reportDate={meta.reportDate}
+                reportDates={meta.reportDates}
+                activeGroup={meta.activeGroup}
               />
             )}
 

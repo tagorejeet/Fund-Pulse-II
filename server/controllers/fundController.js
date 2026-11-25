@@ -36,6 +36,9 @@ const getFunds = async (req, res) => {
     });
 
     const categories = await amfiService.getCategories();
+    const activeGroup = amfiService.getAssetGroupForCategory(category);
+    const groupReportDate = amfiService.getGroupNavDate(category);
+    const reportDates = amfiService.getGroupNavDates();
 
     res.json({
       success: true,
@@ -48,7 +51,10 @@ const getFunds = async (req, res) => {
         customDaysList: result.customDaysList,
         categories,
         debtSubCategories: result.debtSubCategories || amfiService.getDebtSubCategories(),
-        reportDate: result.reportDate,
+        reportDate: (category && category !== 'all' && groupReportDate) ? groupReportDate : result.reportDate,
+        groupReportDate,
+        reportDates,
+        activeGroup,
         lastUpdated: result.lastUpdated
       }
     });
@@ -94,6 +100,7 @@ const getBatchFunds = async (req, res) => {
         total: result.total,
         customDaysList: result.customDaysList,
         reportDate: result.reportDate,
+        reportDates: amfiService.getGroupNavDates(),
         lastUpdated: result.lastUpdated
       }
     });

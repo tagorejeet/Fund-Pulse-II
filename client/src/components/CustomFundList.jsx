@@ -594,11 +594,32 @@ export const CustomFundList = ({
                               </td>
                               {isBoth ? (
                                 <>
-                                  <td className="p-3 text-slate-800 dark:text-slate-200">{formatNav(fund.regNav ?? fund.currentNav)}</td>
-                                  <td className="p-3 text-emerald-700 dark:text-emerald-300 font-semibold">{formatNav(fund.dirNav ?? fund.currentNav)}</td>
+                                  <td className="p-3 text-slate-800 dark:text-slate-200">
+                                    <div>{formatNav(fund.regNav ?? fund.currentNav)}</div>
+                                    {fund.navDate && (
+                                      <div className="text-[9px] text-slate-400 dark:text-slate-500 font-mono font-normal">
+                                        as of {fund.navDate}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="p-3 text-emerald-700 dark:text-emerald-300 font-semibold">
+                                    <div>{formatNav(fund.dirNav ?? fund.currentNav)}</div>
+                                    {fund.navDate && (
+                                      <div className="text-[9px] text-slate-400 dark:text-slate-500 font-mono font-normal">
+                                        as of {fund.navDate}
+                                      </div>
+                                    )}
+                                  </td>
                                 </>
                               ) : (
-                                <td className="p-3 text-slate-800 dark:text-slate-200">{formatNav(fund.currentNav)}</td>
+                                <td className="p-3 text-slate-800 dark:text-slate-200">
+                                  <div>{formatNav(fund.currentNav)}</div>
+                                  {fund.navDate && (
+                                    <div className="text-[9px] text-slate-400 dark:text-slate-500 font-mono font-normal">
+                                      as of {fund.navDate}
+                                    </div>
+                                  )}
+                                </td>
                               )}
                               {mode === 'yearly' ? (
                                 isBoth ? (

@@ -1,6 +1,6 @@
 import React from 'react';
 
-const StatusBadge = ({ isCached, lastUpdated, reportDate }) => {
+const StatusBadge = ({ isCached, lastUpdated, reportDate, activeGroup, reportDates }) => {
   const formattedTime = lastUpdated
     ? new Date(lastUpdated).toLocaleTimeString('en-IN', {
         hour: '2-digit',
@@ -8,6 +8,10 @@ const StatusBadge = ({ isCached, lastUpdated, reportDate }) => {
         second: '2-digit'
       })
     : '';
+
+  const groupLabel = activeGroup
+    ? (activeGroup === 'debt' ? 'Debt' : activeGroup === 'hybrid' ? 'Hybrid' : activeGroup === 'other' ? 'Other' : 'Equity')
+    : null;
 
   return (
     <div className="flex flex-wrap items-center gap-2.5 text-xs font-medium">
@@ -30,7 +34,9 @@ const StatusBadge = ({ isCached, lastUpdated, reportDate }) => {
 
       {reportDate && (
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 shadow-sm">
-          <span className="text-slate-500 dark:text-slate-400">AMFI Date:</span>
+          <span className="text-slate-500 dark:text-slate-400">
+            {groupLabel ? `AMFI Date (${groupLabel}):` : 'AMFI Date:'}
+          </span>
           <span className="font-semibold text-slate-900 dark:text-slate-100">{reportDate}</span>
         </div>
       )}

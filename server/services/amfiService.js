@@ -15,7 +15,7 @@
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
-const { MASTER_ALLOWLIST, MASTER_CATEGORIES, CATEGORY_DISPLAY_ORDER } = require('../config/masterList');
+const { MASTER_ALLOWLIST, MASTER_CATEGORIES, CATEGORY_DISPLAY_ORDER, ASSET_GROUPS, CATEGORY_TO_ASSET_GROUP, getAssetGroupForCategory } = require('../config/masterList');
 const { fuzzyFilterSchemes } = require('../utils/fuzzySearch');
 
 const CACHE_DIR = path.join(__dirname, '../cache');
@@ -390,6 +390,12 @@ class AmfiService {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     this.reportDate = formatAmfiDate(yesterday);
+    this.groupNavDates = {
+      equity: this.reportDate,
+      debt: this.reportDate,
+      hybrid: this.reportDate,
+      other: this.reportDate
+    };
     this.lastUpdated = new Date().toISOString();
     this.isInitialized = false;
     this.inFlightInitPromise = null;
@@ -692,33 +698,36 @@ class AmfiService {
     const neededPairs = Array.from(pairMap.values());
     if (neededPairs.length === 0) return null;
 
-    // Fast-probe active date in AMFI fundperformance table (shared across all categories)
+    // Fast-probe active date in AMFI fundperformance table
     let resolvedDate = null;
+    const primaryPair = neededPairs[0] || { category: 1, subCategory: 1 };
+    const primaryKey = `${primaryPair.category}_${primaryPair.subCategory}`;
 
-    // 1. Check if targetDate is already cached for category 1
-    if (this.historicalAumCache.has(`${targetFormatted}_1_1`)) {
+    // 1. Check if targetDate is already cached for primary pair
+    if (this.historicalAumCache.has(`${targetFormatted}_${primaryKey}`)) {
       resolvedDate = targetFormatted;
     }
 
-    // 2. Check if targetDate is today or after master reportDate
-    const reportDateTime = this.reportDate ? parseNavDate(this.reportDate).getTime() : 0;
+    // 2. Check if targetDate is today or after group reportDate
+    const groupReportDate = this.getGroupNavDate(schemes[0]?.category) || this.reportDate;
+    const reportDateTime = groupReportDate ? parseNavDate(groupReportDate).getTime() : 0;
     const isCurrentOrFuture = parsedDate.getTime() >= reportDateTime;
 
-    if (!resolvedDate && isCurrentOrFuture && this.reportDate) {
-      if (this.historicalAumCache.has(`${this.reportDate}_1_1`)) {
-        resolvedDate = this.reportDate;
+    if (!resolvedDate && isCurrentOrFuture && groupReportDate) {
+      if (this.historicalAumCache.has(`${groupReportDate}_${primaryKey}`)) {
+        resolvedDate = groupReportDate;
       }
     }
 
     // 3. Fast probe candidate dates (max 4 days rollback, 2000ms timeout)
     if (!resolvedDate) {
-      const probeStartDate = (isCurrentOrFuture && this.reportDate) ? parseNavDate(this.reportDate) : parsedDate;
+      const probeStartDate = (isCurrentOrFuture && groupReportDate) ? parseNavDate(groupReportDate) : parsedDate;
       for (let offset = 0; offset <= 4; offset++) {
         const cand = new Date(probeStartDate);
         cand.setDate(probeStartDate.getDate() - offset);
         const candStr = formatAmfiDate(cand);
 
-        if (this.historicalAumCache.has(`${candStr}_1_1`)) {
+        if (this.historicalAumCache.has(`${candStr}_${primaryKey}`)) {
           resolvedDate = candStr;
           break;
         }
@@ -732,7 +741,7 @@ class AmfiService {
               'Origin': 'https://www.amfiindia.com',
               'Referer': 'https://www.amfiindia.com/polling/amfi/'
             },
-            body: JSON.stringify({ maturityType: 1, category: 1, subCategory: 1, mfid: 0, reportDate: candStr }),
+            body: JSON.stringify({ maturityType: 1, category: primaryPair.category, subCategory: primaryPair.subCategory, mfid: 0, reportDate: candStr }),
             signal: AbortSignal.timeout(2000)
           });
           if (probeRes.ok) {
@@ -746,9 +755,9 @@ class AmfiService {
       }
     }
 
-    // Fallback: Default to reportDate or targetFormatted
+    // Fallback: Default to groupReportDate or targetFormatted
     if (!resolvedDate) {
-      resolvedDate = this.reportDate || targetFormatted;
+      resolvedDate = groupReportDate || targetFormatted;
     }
 
     // Fetch all needed pairs for ONLY this resolvedDate in parallel with bounded concurrency
@@ -854,44 +863,132 @@ class AmfiService {
   }
 
   /**
+   * Helper to extract group-wise NAV dates with strict quorum validation:
+   * 1. At least 3 distinct real AMC institutions.
+   * 2. At least 10% of that group's active open-ended schemes.
+   * Both conditions must be satisfied before promoting a newly detected NAV date.
+   * If not met, retains the last verified date for that group.
+   */
+  extractGroupNavDatesFromNavAll(text) {
+    if (!text) return this.groupNavDates;
+
+    const lines = text.split(/\r?\n/);
+    const today = new Date();
+    const todayTime = today.getTime();
+
+    let currentCategory = 'UNCATEGORIZED';
+    let currentAmc = 'Unknown AMC';
+    let isOpenEnded = false;
+    let currentGroup = null;
+
+    const activeOpenEndedCount = { equity: 0, debt: 0, hybrid: 0, other: 0 };
+    const dateCounts = { equity: new Map(), debt: new Map(), hybrid: new Map(), other: new Map() };
+    const dateAmcs = { equity: new Map(), debt: new Map(), hybrid: new Map(), other: new Map() };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      if (!trimmed.includes(';')) {
+        const tLow = trimmed.toLowerCase();
+        if (tLow.includes('open ended schemes') || tLow.includes('close ended schemes') || tLow.includes('interval fund')) {
+          currentCategory = trimmed;
+          isOpenEnded = tLow.includes('open ended schemes');
+
+          if (tLow.includes('debt scheme') || tLow.includes('income/debt') || tLow.includes('liquid') || tLow.includes('money market') || tLow.includes('gilt')) {
+            currentGroup = 'debt';
+          } else if (tLow.includes('hybrid scheme') || tLow.includes('hybrid schemes')) {
+            currentGroup = 'hybrid';
+          } else if (tLow.includes('solution') || tLow.includes('children') || tLow.includes('retirement') || tLow.includes('other scheme') || tLow.includes('fund of funds') || tLow.includes('gold etf')) {
+            currentGroup = 'other';
+          } else if (tLow.includes('equity scheme') || tLow.includes('index funds') || (tLow.includes('etf') && !tLow.includes('debt') && !tLow.includes('gold'))) {
+            currentGroup = 'equity';
+          } else {
+            currentGroup = null;
+          }
+        } else {
+          currentAmc = trimmed;
+        }
+        continue;
+      }
+
+      const firstChar = trimmed.charCodeAt(0);
+      if (firstChar >= 48 && firstChar <= 57 && isOpenEnded && currentGroup) {
+        const parts = trimmed.split(';');
+        if (parts.length >= 8 && parts[7]?.trim()) {
+          const dStr = parts[7].trim();
+          const pDate = parseNavDate(dStr);
+          if (!isNaN(pDate.getTime()) && pDate.getTime() <= todayTime) {
+            activeOpenEndedCount[currentGroup]++;
+            const dc = dateCounts[currentGroup];
+            dc.set(dStr, (dc.get(dStr) || 0) + 1);
+            const da = dateAmcs[currentGroup];
+            if (!da.has(dStr)) da.set(dStr, new Set());
+            da.get(dStr).add(currentAmc);
+          }
+        }
+      }
+    }
+
+    const groups = ['equity', 'debt', 'hybrid', 'other'];
+    const resolved = { ...(this.groupNavDates || {}) };
+
+    for (const grp of groups) {
+      const totalActive = activeOpenEndedCount[grp];
+      if (totalActive === 0) continue;
+
+      const minSchemeCount = Math.ceil(totalActive * 0.10); // 10% active open-ended quorum
+      const minAmcCount = 3; // At least 3 distinct AMC institutions
+
+      let bestDate = null;
+      let mostFrequentDate = null;
+      let maxCount = 0;
+
+      for (const [dStr, count] of dateCounts[grp].entries()) {
+        const amcSet = dateAmcs[grp].get(dStr);
+        const amcCount = amcSet ? amcSet.size : 0;
+
+        if (count > maxCount) {
+          maxCount = count;
+          mostFrequentDate = dStr;
+        }
+
+        if (amcCount >= minAmcCount && count >= minSchemeCount) {
+          if (!bestDate || parseNavDate(dStr).getTime() > parseNavDate(bestDate).getTime()) {
+            bestDate = dStr;
+          }
+        }
+      }
+
+      if (bestDate) {
+        resolved[grp] = bestDate;
+      } else if (!resolved[grp]) {
+        resolved[grp] = mostFrequentDate;
+      }
+    }
+
+    this.groupNavDates = resolved;
+    return resolved;
+  }
+
+  getGroupNavDates() {
+    return { ...(this.groupNavDates || {}) };
+  }
+
+  getGroupNavDate(categoryOrGroup) {
+    if (!categoryOrGroup) return this.reportDate;
+    const grp = getAssetGroupForCategory(categoryOrGroup) || categoryOrGroup;
+    return (this.groupNavDates && this.groupNavDates[grp]) ? this.groupNavDates[grp] : this.reportDate;
+  }
+
+  /**
    * Helper to robustly extract the latest market date with comprehensive coverage from NAVAll.txt
    */
   extractLatestMarketDateFromNavAll(text) {
     if (!text) return null;
-    const lines = text.split('\n');
-    const dateCounts = new Map();
-    const today = new Date();
-    // Only consider dates on or before today
-    for (const l of lines) {
-      const parts = l.trim().split(';');
-      if (parts.length >= 8 && parts[7]?.trim()) {
-        const dStr = parts[7].trim();
-        const pDate = parseNavDate(dStr);
-        if (!isNaN(pDate.getTime()) && pDate.getTime() <= today.getTime()) {
-          dateCounts.set(dStr, (dateCounts.get(dStr) || 0) + 1);
-        }
-      }
-    }
-    if (dateCounts.size === 0) return null;
-
-    // Filter dates with comprehensive market coverage (>= 500 schemes), otherwise fallback to highest volume
-    let bestDate = null;
-    let maxCount = 0;
-    let mostFrequentDate = null;
-
-    for (const [dStr, count] of dateCounts.entries()) {
-      if (count > maxCount) {
-        maxCount = count;
-        mostFrequentDate = dStr;
-      }
-      if (count >= 500) {
-        if (!bestDate || parseNavDate(dStr).getTime() > parseNavDate(bestDate).getTime()) {
-          bestDate = dStr;
-        }
-      }
-    }
-
-    return bestDate || mostFrequentDate;
+    const groupDates = this.extractGroupNavDatesFromNavAll(text);
+    return groupDates.equity || groupDates.debt || this.reportDate;
   }
 
   /**
@@ -2546,6 +2643,7 @@ class AmfiService {
       customDaysList: daysList,
       debtSubCategories: this.getDebtSubCategories(),
       reportDate: finalReportDate,
+      reportDates: this.getGroupNavDates(),
       lastUpdated: this.lastUpdated
     };
   }
@@ -2713,6 +2811,7 @@ class AmfiService {
       total: fundsWithReturns.length,
       customDaysList: daysList,
       reportDate: finalReportDate,
+      reportDates: this.getGroupNavDates(),
       lastUpdated: this.lastUpdated
     };
   }
@@ -2722,5 +2821,6 @@ const amfiServiceInstance = new AmfiService();
 amfiServiceInstance.formatAmfiDate = formatAmfiDate;
 amfiServiceInstance.parseNavDate = parseNavDate;
 amfiServiceInstance.formatAmfiDateToIso = formatAmfiDateToIso;
+amfiServiceInstance.getAssetGroupForCategory = getAssetGroupForCategory;
 
 module.exports = amfiServiceInstance;

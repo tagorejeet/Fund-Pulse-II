@@ -176,13 +176,14 @@ const FundTable = ({
             Valuation & Performance as of: <strong className="text-slate-900 dark:text-white font-bold">{calculationDate || 'Today'}</strong>
             {(meta?.reportDate || funds?.[0]?.navDate) && (
               <span className="text-slate-500 dark:text-slate-400 ml-2">
-                (Latest AMFI Data Date: <strong className="text-emerald-700 dark:text-emerald-400 font-semibold">{meta?.reportDate || funds?.[0]?.navDate}</strong>)
+                ({meta?.activeGroup ? `${meta.activeGroup.toUpperCase()} AMFI Data Date: ` : 'Latest AMFI Data Date: '}
+                <strong className="text-emerald-700 dark:text-emerald-400 font-semibold">{meta?.reportDate || funds?.[0]?.navDate}</strong>)
               </span>
             )}
           </span>
         </div>
         <span className="text-slate-500 dark:text-slate-400 text-[11px] hidden sm:inline">
-          All fund NAV values and returns in this table are calculated as of this date
+          Individual verified NAV dates displayed per scheme row
         </span>
       </div>
 
@@ -511,15 +512,30 @@ const FundTable = ({
                       {selectedPlan === 'both' ? (
                         <>
                           <td className="p-3.5 whitespace-nowrap font-mono text-[11px] text-slate-800 dark:text-slate-200">
-                            {formatNav(fund.regNav ?? fund.currentNav)}
+                            <div>{formatNav(fund.regNav ?? fund.currentNav)}</div>
+                            {fund.navDate && (
+                              <div className="text-[9px] text-slate-400 dark:text-slate-500 font-mono font-normal">
+                                as of {fund.navDate}
+                              </div>
+                            )}
                           </td>
                           <td className="p-3.5 whitespace-nowrap font-mono text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold">
-                            {formatNav(fund.dirNav ?? fund.currentNav)}
+                            <div>{formatNav(fund.dirNav ?? fund.currentNav)}</div>
+                            {fund.navDate && (
+                              <div className="text-[9px] text-slate-400 dark:text-slate-500 font-mono font-normal">
+                                as of {fund.navDate}
+                              </div>
+                            )}
                           </td>
                         </>
                       ) : (
                         <td className="p-3.5 whitespace-nowrap font-mono text-[11px] text-slate-800 dark:text-slate-200">
-                          {formatNav(fund.currentNav)}
+                          <div>{formatNav(fund.currentNav)}</div>
+                          {fund.navDate && (
+                            <div className="text-[9px] text-slate-400 dark:text-slate-500 font-mono font-normal">
+                              as of {fund.navDate}
+                            </div>
+                          )}
                         </td>
                       )}
 
