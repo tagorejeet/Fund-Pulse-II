@@ -124,6 +124,8 @@ export function App() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const activeRequestIdRef = useRef(0);
+  const activeCustomRequestIdRef = useRef(0);
+  const activeSuggestionRequestIdRef = useRef(0);
   const abortControllerRef = useRef(null);
   const customAbortRef = useRef(null);
   const suggestionAbortRef = useRef(null);
@@ -491,10 +493,12 @@ export function App() {
     eDate = endDate,
     calcDate = calculationDate
   ) => {
+    const requestId = ++activeCustomRequestIdRef.current;
     if (!idsSet || idsSet.size === 0) {
       if (customAbortRef.current) customAbortRef.current.abort();
       setCustomFunds([]);
       setCustomFundsError(null);
+      setIsCustomLoading(false);
       return;
     }
 
@@ -517,6 +521,9 @@ export function App() {
         asOfDate: calcDate,
         signal: controller.signal
       });
+
+      if (requestId !== activeCustomRequestIdRef.current) return;
+
       setCustomFunds(res.data?.funds || []);
       if (res.data?.reportDate) {
         setMeta(prev => ({
@@ -535,10 +542,14 @@ export function App() {
       }
     } catch (err) {
       if (err.name === 'AbortError') return;
-      console.error('Failed to load custom fund list details:', err);
-      setCustomFundsError(err.message || 'Server timeout or network error while fetching fund details.');
+      if (requestId === activeCustomRequestIdRef.current) {
+        console.error('Failed to load custom fund list details:', err);
+        setCustomFundsError(err.message || 'Server timeout or network error while fetching fund details.');
+      }
     } finally {
-      setIsCustomLoading(false);
+      if (requestId === activeCustomRequestIdRef.current) {
+        setIsCustomLoading(false);
+      }
     }
   }, [selectedFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate]);
 
@@ -552,10 +563,12 @@ export function App() {
     eDate = endDate,
     calcDate = calculationDate
   ) => {
+    const requestId = ++activeSuggestionRequestIdRef.current;
     if (!idsSet || idsSet.size === 0) {
       if (suggestionAbortRef.current) suggestionAbortRef.current.abort();
       setSuggestionFunds([]);
       setSuggestionFundsError(null);
+      setIsSuggestionLoading(false);
       return;
     }
 
@@ -578,6 +591,9 @@ export function App() {
         asOfDate: calcDate,
         signal: controller.signal
       });
+
+      if (requestId !== activeSuggestionRequestIdRef.current) return;
+
       setSuggestionFunds(res.data?.funds || []);
       if (res.data?.reportDate) {
         setMeta(prev => ({
@@ -596,10 +612,14 @@ export function App() {
       }
     } catch (err) {
       if (err.name === 'AbortError') return;
-      console.error('Failed to load suggestion fund list details:', err);
-      setSuggestionFundsError(err.message || 'Server timeout or network error while fetching fund details.');
+      if (requestId === activeSuggestionRequestIdRef.current) {
+        console.error('Failed to load suggestion fund list details:', err);
+        setSuggestionFundsError(err.message || 'Server timeout or network error while fetching fund details.');
+      }
     } finally {
-      setIsSuggestionLoading(false);
+      if (requestId === activeSuggestionRequestIdRef.current) {
+        setIsSuggestionLoading(false);
+      }
     }
   }, [suggestionFundIds, selectedPlan, customDaysList, startDate, endDate, calculationDate]);
 
