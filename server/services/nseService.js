@@ -65,7 +65,11 @@ loadDiskCache();
 
 function saveDiskCache() {
   try {
-    fs.writeFileSync(CACHE_FILE, JSON.stringify(memoryCache), 'utf-8');
+    fs.writeFile(CACHE_FILE, JSON.stringify(memoryCache), 'utf-8', (err) => {
+      if (err) {
+        logger.warn('Could not save NSE cache to disk:', err.message);
+      }
+    });
   } catch (err) {
     logger.warn('Could not save NSE cache to disk:', err.message);
   }
@@ -339,7 +343,6 @@ async function refreshAllNseIndices(force = false) {
     } else if (chunkAttempted > 0) {
       consecutiveBatchFailures = 0;
     }
-    saveDiskCache();
   }
 
   // Keep factsheet indices in perfect lockstep with the latest trading dates

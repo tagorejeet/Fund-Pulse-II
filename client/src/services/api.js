@@ -4,6 +4,32 @@
 
 const API_BASE = '/api';
 
+/**
+ * Resilient fetch wrapper with automatic retry for transient proxy/gateway errors (502, 503, 504, 408)
+ */
+const fetchWithRetry = async (url, options = {}, retries = 2, delayMs = 600) => {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      // Retry transient server/gateway errors often seen during Render cold boot or container restarts
+      if ([502, 503, 504, 408].includes(response.status) && attempt < retries && !options?.signal?.aborted) {
+        await new Promise(r => setTimeout(r, delayMs * Math.pow(2, attempt)));
+        continue;
+      }
+      return response;
+    } catch (err) {
+      if (options?.signal?.aborted) {
+        throw err;
+      }
+      if (attempt < retries && (err.name === 'TypeError' || err.message?.includes('fetch') || err.message?.includes('network'))) {
+        await new Promise(r => setTimeout(r, delayMs * Math.pow(2, attempt)));
+        continue;
+      }
+      throw err;
+    }
+  }
+};
+
 export const fetchFunds = async ({ category = 'all', subCategory = 'all', search = '', plan = 'regular', option = 'all', page = 1, limit = 50, days, customDays = '33,50,67', startDate, endDate, asOfDate, calculationDate, signal } = {}) => {
   const params = new URLSearchParams();
   if (category && category !== 'all') params.append('category', category);
@@ -28,7 +54,7 @@ export const fetchFunds = async ({ category = 'all', subCategory = 'all', search
     params.append('calculationDate', dateVal);
   }
 
-  const response = await fetch(`${API_BASE}/funds?${params.toString()}`, { signal });
+  const response = await fetchWithRetry(`${API_BASE}/funds?${params.toString()}`, { signal });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error || 'AMFI data is temporarily unavailable.');
@@ -45,7 +71,7 @@ export const fetchBatchFunds = async ({ ids = [], plan = 'regular', days, custom
   const formattedDays = Array.isArray(rawDays) ? rawDays.join(',') : String(rawDays);
   const dateVal = asOfDate || calculationDate;
 
-  const response = await fetch(`${API_BASE}/funds/batch`, {
+  const response = await fetchWithRetry(`${API_BASE}/funds/batch`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -87,7 +113,7 @@ export const fetchFundById = async (id, plan = 'regular', days, customDays = '33
     params.append('calculationDate', dateVal);
   }
 
-  const response = await fetch(`${API_BASE}/funds/${id}?${params.toString()}`);
+  const response = await fetchWithRetry(`${API_BASE}/funds/${id}?${params.toString()}`);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error || 'Failed to fetch fund details.');
@@ -96,7 +122,7 @@ export const fetchFundById = async (id, plan = 'regular', days, customDays = '33
 };
 
 export const fetchCategories = async () => {
-  const response = await fetch(`${API_BASE}/categories`);
+  const response = await fetchWithRetry(`${API_BASE}/categories`);
   if (!response.ok) {
     throw new Error('Failed to fetch categories.');
   }
@@ -104,7 +130,7 @@ export const fetchCategories = async () => {
 };
 
 export const fetchHealth = async () => {
-  const response = await fetch(`${API_BASE}/health`);
+  const response = await fetchWithRetry(`${API_BASE}/health`);
   if (!response.ok) {
     throw new Error('Health check failed.');
   }
@@ -126,7 +152,7 @@ export const triggerRefresh = async () => {
 };
 
 export const calculateSipApi = async ({ ids = [], monthlySip = 10000, calculationDate = null, sipDay = 25, plan = 'regular' } = {}) => {
-  const response = await fetch(`${API_BASE}/sip/calculate`, {
+  const response = await fetchWithRetry(`${API_BASE}/sip/calculate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -141,7 +167,7 @@ export const calculateSipApi = async ({ ids = [], monthlySip = 10000, calculatio
 };
 
 export const fetchSipNavHistory = async (fundId, plan = 'regular') => {
-  const response = await fetch(`${API_BASE}/sip/nav-history/${fundId}?plan=${plan}`);
+  const response = await fetchWithRetry(`${API_BASE}/sip/nav-history/${fundId}?plan=${plan}`);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error || 'Failed to retrieve NAV history.');
@@ -168,7 +194,7 @@ export const fetchNSEIndices = async (date = null, { days = null, customDays = n
     params.append('endDate', endDate);
   }
   const queryStr = params.toString();
-  const response = await fetch(`${API_BASE}/nse/indices${queryStr ? '?' + queryStr : ''}`);
+  const response = await fetchWithRetry(`${API_BASE}/nse/indices${queryStr ? '?' + queryStr : ''}`);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error || 'Official NSE data is temporarily unavailable.');
@@ -181,7 +207,7 @@ export const fetchNSEIndexById = async (id, date = null) => {
   if (date) {
     params.append('date', date);
   }
-  const response = await fetch(`${API_BASE}/nse/indices/${encodeURIComponent(id)}?${params.toString()}`);
+  const response = await fetchWithRetry(`${API_BASE}/nse/indices/${encodeURIComponent(id)}?${params.toString()}`);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error || 'Failed to fetch official NSE index details.');

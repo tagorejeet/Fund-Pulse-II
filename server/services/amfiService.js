@@ -504,30 +504,55 @@ class AmfiService {
         }
       }
 
-      // 2. Load runtime disk NAV cache if present
+      // 2. Load runtime disk NAV cache if present (bound to active/curated schemes to protect memory limit)
       if (fs.existsSync(NAV_CACHE_FILE)) {
-        const raw = fs.readFileSync(NAV_CACHE_FILE, 'utf-8');
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object') {
-          let count = 0;
-          for (const [codeStr, entry] of Object.entries(parsed)) {
-            const code = Number(codeStr);
-            if (code && entry && Array.isArray(entry.navList)) {
-              entry.navList.sort((a, b) => parseNavDate(b.date).getTime() - parseNavDate(a.date).getTime());
-              if (entry.isComplete || entry.navList.length >= 2000) {
-                entry.isComplete = true;
-              }
-              this.navHistoryCache.set(code, entry);
-              count++;
-              if (entry.navList[0]?.date) {
-                const d = entry.navList[0].date;
-                if (!maxCachedDate || parseNavDate(d).getTime() > parseNavDate(maxCachedDate).getTime()) {
-                  maxCachedDate = d;
+        try {
+          const stats = fs.statSync(NAV_CACHE_FILE);
+          if (stats.size > 15 * 1024 * 1024) {
+            logger.warn(`Skipping oversized runtime NAV disk cache (${(stats.size/1024/1024).toFixed(1)}MB) to protect 512MB RAM ceiling. Relying on verified seed cache.`);
+          } else {
+            const raw = fs.readFileSync(NAV_CACHE_FILE, 'utf-8');
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') {
+              const allowlistCodes = new Set();
+              MASTER_ALLOWLIST.forEach(item => {
+                if (item.regularSchemeCode) allowlistCodes.add(item.regularSchemeCode);
+                if (item.directSchemeCode) allowlistCodes.add(item.directSchemeCode);
+              });
+
+              let count = 0;
+              for (const [codeStr, entry] of Object.entries(parsed)) {
+                const code = Number(codeStr);
+                if (code && entry && Array.isArray(entry.navList) && entry.navList.length > 0) {
+                  // Prioritize curated suggestion schemes, complete schemes, or deep historical records
+                  const isCurated = allowlistCodes.has(code);
+                  const hasDeepHistory = entry.isComplete || entry.navList.length >= 200;
+                  
+                  // Memory ceiling protection: keep total cached schemes strictly under 500 to stay well under 512MB RAM
+                  if (isCurated || hasDeepHistory) {
+                    if (this.navHistoryCache.size >= 400 && !isCurated) {
+                      continue;
+                    }
+                    entry.navList.sort((a, b) => parseNavDate(b.date).getTime() - parseNavDate(a.date).getTime());
+                    if (entry.isComplete || entry.navList.length >= 2000) {
+                      entry.isComplete = true;
+                    }
+                    this.navHistoryCache.set(code, entry);
+                    count++;
+                    if (entry.navList[0]?.date) {
+                      const d = entry.navList[0].date;
+                      if (!maxCachedDate || parseNavDate(d).getTime() > parseNavDate(maxCachedDate).getTime()) {
+                        maxCachedDate = d;
+                      }
+                    }
+                  }
                 }
               }
+              logger.info(`Loaded ${count} active schemes NAV history from disk cache.`);
             }
           }
-          logger.info(`Loaded ${count} schemes NAV history from disk cache.`);
+        } catch (readErr) {
+          logger.warn(`Could not read runtime NAV disk cache: ${readErr.message}`);
         }
       }
 
@@ -561,8 +586,13 @@ class AmfiService {
       for (const [code, val] of this.navHistoryCache.entries()) {
         obj[code] = val;
       }
-      fs.writeFileSync(NAV_CACHE_FILE, JSON.stringify(obj), 'utf-8');
-      logger.info(`Persisted ${this.navHistoryCache.size} schemes NAV history to disk cache.`);
+      fs.writeFile(NAV_CACHE_FILE, JSON.stringify(obj), 'utf-8', (err) => {
+        if (err) {
+          logger.warn(`Failed to persist NAV history to disk: ${err.message}`);
+        } else {
+          logger.info(`Persisted ${this.navHistoryCache.size} schemes NAV history to disk cache.`);
+        }
+      });
     } catch (err) {
       logger.warn(`Failed to persist NAV history to disk: ${err.message}`);
     }
@@ -1831,14 +1861,17 @@ class AmfiService {
             const nav = parseFloat(parts[6]);
             const date = parts[7]?.trim();
             if (!isNaN(nav) && date) {
-              if (!this.navHistoryCache.has(sCode)) {
-                this.navHistoryCache.set(sCode, { navList: [], timestamp: Date.now() });
+              // Only track schemes that are actively monitored or if cache has headroom (prevents 11,000 scheme explosion)
+              if (this.navHistoryCache.has(sCode) || this.navHistoryCache.size < 400) {
+                if (!this.navHistoryCache.has(sCode)) {
+                  this.navHistoryCache.set(sCode, { navList: [], timestamp: Date.now() });
+                }
+                const sEntry = this.navHistoryCache.get(sCode);
+                if (Array.isArray(sEntry.navList) && !sEntry.navList.some(r => r.date === date)) {
+                  sEntry.navList.push({ date, nav });
+                }
+                matchedCount++;
               }
-              const sEntry = this.navHistoryCache.get(sCode);
-              if (Array.isArray(sEntry.navList) && !sEntry.navList.some(r => r.date === date)) {
-                sEntry.navList.push({ date, nav });
-              }
-              matchedCount++;
             }
           }
         }
