@@ -776,8 +776,9 @@ class AmfiService {
     const primaryPair = neededPairs[0] || { category: 1, subCategory: 1 };
     const primaryKey = `${primaryPair.category}_${primaryPair.subCategory}`;
 
-    // 1. Check if targetDate is already cached for primary pair
-    if (this.historicalAumCache.has(`${targetFormatted}_${primaryKey}`)) {
+    // 1. Check if targetDate is already cached for primary pair with full market quorum (>= 10 schemes)
+    const directCached = this.historicalAumCache.get(`${targetFormatted}_${primaryKey}`);
+    if (directCached && directCached.length >= 10) {
       resolvedDate = targetFormatted;
     }
 
@@ -796,14 +797,20 @@ class AmfiService {
       for (let offset = 0; offset <= 4; offset++) {
         const cand = new Date(probeStartDate);
         cand.setDate(probeStartDate.getDate() - offset);
+        const dow = cand.getDay();
+        // Skip Sundays as markets are closed
+        if (dow === 0) continue;
         const candStr = formatAmfiDate(cand);
 
-        if (this.historicalAumCache.has(`${candStr}_${primaryKey}`)) {
+        // Check cache with quorum requirement (>= 10 schemes)
+        const cached = this.historicalAumCache.get(`${candStr}_${primaryKey}`) || this.historicalAumCache.get(`${candStr}_1_1`);
+        if (cached && cached.length >= 10) {
           resolvedDate = candStr;
           break;
         }
 
         try {
+          // Probe category 1, subCategory 1 (Large Cap) as universal market anchor
           const probeRes = await fetch('https://www.amfiindia.com/gateway/pollingsebi/api/amfi/fundperformance', {
             method: 'POST',
             headers: {
@@ -812,12 +819,12 @@ class AmfiService {
               'Origin': 'https://www.amfiindia.com',
               'Referer': 'https://www.amfiindia.com/polling/amfi/'
             },
-            body: JSON.stringify({ maturityType: 1, category: primaryPair.category, subCategory: primaryPair.subCategory, mfid: 0, reportDate: candStr }),
+            body: JSON.stringify({ maturityType: 1, category: 1, subCategory: 1, mfid: 0, reportDate: candStr }),
             signal: AbortSignal.timeout(4000)
           });
           if (probeRes.ok) {
             const json = await probeRes.json();
-            if (json.data && json.data.length > 0) {
+            if (json.data && json.data.length >= 10) {
               resolvedDate = candStr;
               break;
             }
@@ -826,9 +833,16 @@ class AmfiService {
       }
     }
 
-    // Fallback: Default to groupReportDate or targetFormatted
+    // Fallback: Default to targetFormatted (or clamped Friday if weekend), NEVER groupReportDate for past dates!
     if (!resolvedDate) {
-      resolvedDate = groupReportDate || targetFormatted;
+      if (isCurrentOrFuture) {
+        resolvedDate = groupReportDate || targetFormatted;
+      } else {
+        const d = new Date(parsedDate);
+        if (d.getDay() === 0) d.setDate(d.getDate() - 2);
+        else if (d.getDay() === 6) d.setDate(d.getDate() - 1);
+        resolvedDate = formatAmfiDate(d);
+      }
     }
 
     // Fetch all needed pairs for ONLY this resolvedDate in parallel with bounded concurrency
@@ -1267,7 +1281,7 @@ class AmfiService {
 
             if (res.ok) {
               const json = await res.json();
-              if (json.data && json.data.length > 0) {
+              if (json.data && json.data.length >= 10) {
                 resolvedDate = dateStr;
                 break;
               }
@@ -2328,7 +2342,7 @@ class AmfiService {
         ? (isDirect ? histMatch.navDirect : histMatch.navRegular)
         : (isDirect ? scheme.navDirect : scheme.navRegular);
       resultReturns.currentNav = fallbackNav;
-      resultReturns.navDate = asOfDate ? formatAmfiDate(parseNavDate(asOfDate)) : this.reportDate;
+      resultReturns.navDate = histMatch?.navDate || (asOfDate ? formatAmfiDate(parseNavDate(asOfDate)) : this.reportDate);
       return resultReturns;
     }
 
@@ -2723,14 +2737,23 @@ class AmfiService {
       this.reportDate = latestFundNavDate;
     }
 
-    let finalReportDate = latestFundNavDate;
-    if (!finalReportDate || (histAumRes?.effectiveDate && parseNavDate(histAumRes.effectiveDate).getTime() > parseNavDate(finalReportDate).getTime())) {
-      finalReportDate = histAumRes?.effectiveDate;
-    }
-    if (!finalReportDate) {
-      if (asOfDate) {
-        finalReportDate = formatAmfiDate(parseNavDate(asOfDate));
+    let finalReportDate = null;
+    if (asOfDate) {
+      const asOfTime = parseNavDate(asOfDate).getTime();
+      const asOfFormatted = formatAmfiDate(parseNavDate(asOfDate));
+      if (histAumRes?.effectiveDate && parseNavDate(histAumRes.effectiveDate).getTime() <= asOfTime) {
+        finalReportDate = histAumRes.effectiveDate;
+      } else if (latestFundNavDate && parseNavDate(latestFundNavDate).getTime() <= asOfTime) {
+        finalReportDate = latestFundNavDate;
       } else {
+        finalReportDate = asOfFormatted;
+      }
+    } else {
+      finalReportDate = latestFundNavDate;
+      if (!finalReportDate || (histAumRes?.effectiveDate && parseNavDate(histAumRes.effectiveDate).getTime() > parseNavDate(finalReportDate).getTime())) {
+        finalReportDate = histAumRes?.effectiveDate;
+      }
+      if (!finalReportDate) {
         finalReportDate = this.reportDate;
       }
     }
@@ -2744,7 +2767,12 @@ class AmfiService {
       customDaysList: daysList,
       debtSubCategories: this.getDebtSubCategories(),
       reportDate: finalReportDate,
-      reportDates: this.getGroupNavDates(),
+      reportDates: asOfDate ? {
+        equity: finalReportDate,
+        debt: finalReportDate,
+        hybrid: finalReportDate,
+        other: finalReportDate
+      } : this.getGroupNavDates(),
       lastUpdated: this.lastUpdated
     };
   }
@@ -2895,14 +2923,23 @@ class AmfiService {
       this.reportDate = latestFundNavDate;
     }
 
-    let finalReportDate = latestFundNavDate;
-    if (!finalReportDate || (histAumRes?.effectiveDate && parseNavDate(histAumRes.effectiveDate).getTime() > parseNavDate(finalReportDate).getTime())) {
-      finalReportDate = histAumRes?.effectiveDate;
-    }
-    if (!finalReportDate) {
-      if (asOfDate) {
-        finalReportDate = formatAmfiDate(parseNavDate(asOfDate));
+    let finalReportDate = null;
+    if (asOfDate) {
+      const asOfTime = parseNavDate(asOfDate).getTime();
+      const asOfFormatted = formatAmfiDate(parseNavDate(asOfDate));
+      if (histAumRes?.effectiveDate && parseNavDate(histAumRes.effectiveDate).getTime() <= asOfTime) {
+        finalReportDate = histAumRes.effectiveDate;
+      } else if (latestFundNavDate && parseNavDate(latestFundNavDate).getTime() <= asOfTime) {
+        finalReportDate = latestFundNavDate;
       } else {
+        finalReportDate = asOfFormatted;
+      }
+    } else {
+      finalReportDate = latestFundNavDate;
+      if (!finalReportDate || (histAumRes?.effectiveDate && parseNavDate(histAumRes.effectiveDate).getTime() > parseNavDate(finalReportDate).getTime())) {
+        finalReportDate = histAumRes?.effectiveDate;
+      }
+      if (!finalReportDate) {
         finalReportDate = this.reportDate;
       }
     }
@@ -2912,7 +2949,12 @@ class AmfiService {
       total: fundsWithReturns.length,
       customDaysList: daysList,
       reportDate: finalReportDate,
-      reportDates: this.getGroupNavDates(),
+      reportDates: asOfDate ? {
+        equity: finalReportDate,
+        debt: finalReportDate,
+        hybrid: finalReportDate,
+        other: finalReportDate
+      } : this.getGroupNavDates(),
       lastUpdated: this.lastUpdated
     };
   }
